@@ -1,3 +1,8 @@
+<img width="1910" height="861" alt="image" src="https://github.com/user-attachments/assets/7231c97b-85e0-4a76-b374-0a9b5b2a2eed" />
+<img width="1917" height="863" alt="image" src="https://github.com/user-attachments/assets/0a83f583-9a14-4c31-abcf-a00f7cb38bf3" />
+<img width="1906" height="862" alt="image" src="https://github.com/user-attachments/assets/fdd0a66e-dfdc-4208-89d8-0b7697293bff" />
+<img width="1882" height="861" alt="image" src="https://github.com/user-attachments/assets/f35db0e6-75ed-454a-ab89-4742edfe2064" />
+
 # Lingua Flow
 
 Voice-first English–Turkish card learning. Status: stage 3 (auth, classes, cards, bulk import, voice study). The PWA install and final deployment polish are not done.

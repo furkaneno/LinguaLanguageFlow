@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function str(v, max) { return v is string && v.size() > 0 && v.size() <= max; }
+    function validSession(d) {
+      return d.keys().hasOnly(['ownerId','classId','cardIds','currentIndex','currentStage','completedCardIds','status','attemptCount','startedAt','updatedAt','completedAt'])
+        && d.keys().hasAll(['ownerId','classId','cardIds','currentIndex','currentStage','completedCardIds','status','attemptCount','startedAt','updatedAt'])
+        && d.classId is string
+        && d.status in ['active','completed','abandoned']
+        && d.currentStage in ['english','turkish']
+        && d.cardIds is list && d.cardIds.size() <= 2000
+        && d.completedCardIds is list && d.completedCardIds.size() <= 2000
+        && d.currentIndex is int && d.currentIndex >= 0
+        && d.attemptCount is int && d.attemptCount >= 0;
+    }
+
+    match /users/{uid} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid);
+
+      match /classes/{classId} {
+        allow read, delete: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['name','description','ownerId','cardCount','createdAt','updatedAt','lastStudiedAt'])
+          && request.resource.data.keys().hasAll(['name','ownerId','createdAt','updatedAt'])
+          && request.resource.data.ownerId == uid
+          && str(request.resource.data.name, 80)
+          && (!('description' in request.resource.data) || (request.resource.data.description is string && request.resource.data.description.size() <= 300));
+        allow update: if isOwner(uid)
+          && request.resource.data.ownerId == resource.data.ownerId
+          && str(request.resource.data.name, 80)
+          && request.resource.data.keys().hasOnly(['name','description','ownerId','cardCount','createdAt','updatedAt','lastStudiedAt']);
+
+        match /cards/{cardId} {
+          allow read, delete: if isOwner(uid);
+          allow create: if isOwner(uid)
+            && exists(/databases/$(database)/documents/users/$(uid)/classes/$(classId))
+            && request.resource.data.keys().hasOnly(['englishText','turkishMeaning','ownerId','classId','createdAt','updatedAt','learningProgress'])
+            && request.resource.data.keys().hasAll(['englishText','turkishMeaning','ownerId','classId','createdAt','updatedAt'])
+            && request.resource.data.ownerId == uid
+            && request.resource.data.classId == classId
+            && str(request.resource.data.englishText, 500)
+            && str(request.resource.data.turkishMeaning, 500);
+          allow update: if isOwner(uid)
+            && request.resource.data.ownerId == resource.data.ownerId
+            && request.resource.data.classId == resource.data.classId
+            && request.resource.data.keys().hasOnly(['englishText','turkishMeaning','ownerId','classId','createdAt','updatedAt','learningProgress'])
+            && (!('learningProgress' in request.resource.data) || request.resource.data.learningProgress is map)
+            && str(request.resource.data.englishText, 500)
+            && str(request.resource.data.turkishMeaning, 500);
+        }
+      }
+
+      match /studySessions/{sessionId} {
+        allow read, delete: if isOwner(uid);
+        allow create: if isOwner(uid) && validSession(request.resource.data) && request.resource.data.ownerId == uid;
+        allow update: if isOwner(uid) && validSession(request.resource.data)
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.classId == resource.data.classId
+          && request.resource.data.cardIds == resource.data.cardIds;
+
+        match /attempts/{attemptId} {
+          allow read: if isOwner(uid);
+          allow create: if isOwner(uid)
+            && request.resource.data.keys().hasOnly(['cardId','stage','recognizedText','score','scoreType','passed','provider','createdAt'])
+            && request.resource.data.keys().hasAll(['cardId','stage','score','scoreType','passed','provider','createdAt'])
+            && request.resource.data.stage in ['english','turkish']
+            && request.resource.data.score is number
+            && request.resource.data.score >= 0 && request.resource.data.score <= 100
+            && request.resource.data.passed is bool;
+          allow update, delete: if false;
+        }
+      }
+    }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

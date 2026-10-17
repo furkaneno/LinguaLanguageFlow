@@ -27,10 +27,11 @@ function levenshtein(a: string, b: string): number {
 
 const charSim = (a: string, b: string) => 1 - levenshtein(a, b) / Math.max(a.length, b.length, 1);
 
-/** Token similarity: near-matches earn partial credit only if clearly the same word. */
+/** Token similarity: near-matches earn partial credit. */
 function tokenSim(a: string, b: string): number {
   const s = charSim(a, b);
-  return s >= 0.75 && Math.min(a.length, b.length) >= 4 ? s : a === b ? 1 : 0;
+  // Eşiği 0.75'ten 0.60'a çekerek "note" ve "not" gibi kelimelerin eşleşmesini kolaylaştırıyoruz
+  return s >= 0.60 && Math.min(a.length, b.length) >= 3 ? s : a === b ? 1 : 0;
 }
 
 /** Word-level alignment (DP) with fuzzy substitution; omissions and extra words cost 1 each. */

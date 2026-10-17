@@ -29,6 +29,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
   const stats = useRef<CardStats>(emptyStats());
   const completionWritten = useRef(new Set<string>());
   const lastPersisted = useRef("");
+  const persistedIndex = useRef(init.resume?.index ?? 0);
   const classTouched = useRef(false);
   const startedAt = useRef(Date.now());
   const [support, setSupport] = useState<{ recognition: boolean; secure: boolean; synthesis: boolean } | null>(null);
@@ -57,14 +58,16 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
   // Reset per-card state when the card changes.
   useEffect(() => { stats.current = emptyStats(); setHintShown(false); setLast(null); }, [ctx.index]);
 
-  // Persist only at meaningful transitions (English passed, card completed), never per UI event.
+    // Persist only at meaningful transitions (English passed, card completed, card skipped), never per UI event.
   useEffect(() => {
     const attemptCount = init.baseAttempts + ctx.attempts;
     let progress: Parameters<typeof saveSessionProgress>[2] | null = null;
     if (ctx.status === "turkish_ready") {
+      persistedIndex.current = ctx.index;
       progress = { currentIndex: ctx.index, currentStage: "turkish", completedCardIds: ctx.completedIds, attemptCount, status: "active" };
     } else if (ctx.status === "card_completed") {
       const lastCard = ctx.index + 1 >= ctx.cardIds.length;
+      persistedIndex.current = lastCard ? ctx.index : ctx.index + 1;
       progress = { currentIndex: lastCard ? ctx.index : ctx.index + 1, currentStage: lastCard ? "turkish" : "english",
         completedCardIds: ctx.completedIds, attemptCount, status: lastCard ? "completed" : "active" };
       if (cardId && !completionWritten.current.has(cardId)) {
@@ -72,6 +75,14 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
         recordCardCompletion(uid, classId, cardId, card?.level ?? 0, stats.current).catch(reportSaveError);
         if (!classTouched.current) { classTouched.current = true; touchClassStudied(uid, classId).catch(() => {}); }
       }
+    } else if (ctx.status === "english_ready") {
+      // Only reached with a new index after a skip; normal advances were already saved at card completion.
+      if (ctx.index === persistedIndex.current) return;
+      persistedIndex.current = ctx.index;
+      progress = { currentIndex: ctx.index, currentStage: "english", completedCardIds: ctx.completedIds, attemptCount, status: "active" };
+    } else if (ctx.status === "session_completed") {
+      if (lastPersisted.current.includes('"status":"completed"')) return; // already saved when the last card completed
+      progress = { currentIndex: ctx.index, currentStage: "english", completedCardIds: ctx.completedIds, attemptCount, status: "completed" };
     }
     if (!progress) return;
     const key = JSON.stringify(progress);
@@ -114,6 +125,12 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
     } finally { busy.current = false; }
   }, [ctx.status, card, stage, uid, init.sessionId, reportSaveError]);
 
+  const skip = useCallback(() => {
+    if (busy.current) return;
+    getSynth().cancel(); setSpeaking(false);
+    dispatch({ type: "SKIP" }); // the machine ignores this while recording or evaluating
+  }, []);
+
   const listen = useCallback(async () => {
     if (!card || speaking) return;
     setSpeaking(true);
@@ -123,7 +140,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
 
   return {
     ctx, card, stage, last, support, hintShown, showHint: () => setHintShown(true),
-    saveError, voiceMissing, speaking, mic, listen,
+    saveError, voiceMissing, speaking, mic, listen, skip,
     thresholds: { english: ENGLISH_PASS_THRESHOLD, turkish: TURKISH_PASS_THRESHOLD },
     elapsedMs: () => Date.now() - startedAt.current,
   };

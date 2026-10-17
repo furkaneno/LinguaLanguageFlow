@@ -1,6 +1,7 @@
 "use client";
 import { CheckCircle2, Lightbulb, Volume2 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";22:51 17.10.2026
 import { LinkButton, Button } from "@/components/ui/button";
 import { useStudySession, type SessionInit } from "@/hooks/useStudySession";
 import type { CardDoc } from "@/types";
@@ -28,6 +29,7 @@ const fmt = (ms: number) => { const s = Math.round(ms / 1000); return `${Math.fl
 
 export function StudyScreen({ uid, classId, className, cards, init, resumed, onRestart }: Props) {
   const s = useStudySession(uid, classId, cards, init);
+  const [confirmSkip, setConfirmSkip] = useState(false);
   const { ctx, card, stage, last } = s;
   const back = `/classes/${classId}`;
 
@@ -57,15 +59,19 @@ export function StudyScreen({ uid, classId, className, cards, init, resumed, onR
     );
   }
 
-  if (ctx.status === "session_completed") {
+    if (ctx.status === "session_completed") {
     const attempts = init.baseAttempts + ctx.attempts;
+    const skipped = ctx.cardIds.filter((id) => !ctx.completedIds.includes(id)).length;
     return (
       <div className="mx-auto max-w-md py-12 text-center">
         <CheckCircle2 className="mx-auto h-12 w-12 text-emerald" aria-hidden />
         <h1 className="mt-4 font-display text-4xl">Session complete</h1>
-        <p className="mt-2 text-ink-muted">Every card passed both steps.</p>
+        <p className="mt-2 text-ink-muted">
+          {skipped === 0 ? "Every card passed both steps." : "Skipped cards don't count as completed and will come up again in a later session."}
+        </p>
         <dl className="mt-8 grid grid-cols-2 gap-3 text-left">
           <div className="rounded-xl2 border border-line bg-cream-surface p-4"><dt className="text-sm text-ink-muted">Cards completed</dt><dd className="text-2xl font-medium">{ctx.completedIds.length}</dd></div>
+          {skipped > 0 && <div className="rounded-xl2 border border-line bg-cream-surface p-4"><dt className="text-sm text-ink-muted">Skipped</dt><dd className="text-2xl font-medium">{skipped}</dd></div>}
           <div className="rounded-xl2 border border-line bg-cream-surface p-4"><dt className="text-sm text-ink-muted">Scored attempts</dt><dd className="text-2xl font-medium">{attempts}</dd></div>
           {!resumed && <div className="col-span-2 rounded-xl2 border border-line bg-cream-surface p-4"><dt className="text-sm text-ink-muted">Time</dt><dd className="text-2xl font-medium">{fmt(s.elapsedMs())}</dd></div>}
         </dl>
@@ -135,6 +141,19 @@ export function StudyScreen({ uid, classId, className, cards, init, resumed, onR
             <p className="text-sm text-ink-muted">Hint: the saved meaning. You still need to say it to continue.</p>
             <p lang="tr" className="mt-1 text-lg">{card.turkishMeaning}</p>
           </div>
+        )}
+        {!recording && !evaluating && !done && (
+          confirmSkip ? (
+            <div className="w-full rounded-xl2 border border-line bg-cream-surface px-5 py-4 text-left">
+              <p className="text-sm">Skip this card? It won't count as completed and will come up again in a later session.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button variant="secondary" onClick={() => setConfirmSkip(false)}>Keep practicing</Button>
+                <Button onClick={() => { setConfirmSkip(false); s.skip(); }}>Skip card</Button>
+              </div>
+            </div>
+          ) : (
+            <Button variant="ghost" onClick={() => setConfirmSkip(true)}><SkipForward className="h-4 w-4" aria-hidden /> Skip this card</Button>
+          )
         )}
         {s.saveError && <p role="alert" className="text-sm text-[#B42318]"><strong>Not saved: </strong>{s.saveError}</p>}
       </div>

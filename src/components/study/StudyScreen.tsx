@@ -1,5 +1,5 @@
 "use client";
-import { CheckCircle2, Lightbulb, Volume2 } from "lucide-react";
+import { CheckCircle2, Lightbulb, SkipForward, Volume2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { LinkButton, Button } from "@/components/ui/button";

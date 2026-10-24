@@ -17,7 +17,7 @@ export function Dialog({ open, onClose, title, children, wide }:
       ref={ref}
       onClose={onClose}
       onClick={(e) => { if (e.target === ref.current) onClose(); }}
-      className={`m-auto max-h-[92dvh] w-[calc(100%-1.5rem)] ${wide ? "max-w-3xl" : "max-w-lg"} rounded-xl2 border border-line bg-cream-surface p-0 text-ink shadow-xl backdrop:bg-ink/40`}
+      className={`m-auto max-h-[92dvh] w-[calc(100%-1.5rem)] ${wide ? "max-w-3xl" : "max-w-lg"} rounded-xl2 border border-line bg-cream-surface p-0 text-ink shadow-xl backdrop:bg-black/60`}
     >
       {open && (
         <div className="p-5 sm:p-7">

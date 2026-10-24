@@ -22,7 +22,7 @@ export function BulkImportDialog({ open, onClose, ...rest }: Props) {
 
 const STATUS = {
   valid: { label: "Ready", Icon: CheckCircle2, cls: "text-emerald" },
-  invalid: { label: "Invalid", Icon: AlertTriangle, cls: "text-[#B42318]" },
+  invalid: { label: "Invalid", Icon: AlertTriangle, cls: "text-[#FF8A80]" },
   duplicate: { label: "Duplicate", Icon: Copy, cls: "text-ink-muted" },
 } as const;
 
@@ -106,7 +106,7 @@ function ImportBody({ uid, classId, existingKeys, onImported, onClose }: Omit<Pr
           {preview.invalidCount + preview.duplicateCount > 0 && (
             <p className="mt-2 text-sm text-ink-muted">
               Only ready rows are imported. Edit the text above to fix the others, or{" "}
-              <button type="button" onClick={removeBad} disabled={busy} className="font-medium text-emerald underline">remove them from the text</button>.
+              <button type="button" onClick={removeBad} disabled={busy} className="font-medium text-brand-light underline">remove them from the text</button>.
             </p>
           )}
         </div>

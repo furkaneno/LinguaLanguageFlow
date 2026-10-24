@@ -101,10 +101,10 @@ export function StudyScreen({ uid, classId, className, cards, init, resumed, onR
         <span>{ctx.completedIds.length} done</span>
       </div>
       <div role="progressbar" aria-label="Session progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} className="mt-1.5 h-2 overflow-hidden rounded-full bg-blush">
-        <div className="h-full rounded-full bg-emerald transition-all" style={{ width: `${pct}%` }} />
+        <div className="h-full rounded-full bg-brand transition-all" style={{ width: `${pct}%` }} />
       </div>
       {resumed && ctx.index === init.resume?.index && (
-        <p className="mt-3 text-sm text-ink-muted">Picked up where you left off. <button onClick={() => onRestart(true)} className="font-medium text-emerald underline">Start over</button></p>
+        <p className="mt-3 text-sm text-ink-muted">Picked up where you left off. <button onClick={() => onRestart(true)} className="font-medium text-brand-light underline">Start over</button></p>
       )}
 
       <div className="mt-8 flex flex-col items-center gap-6 text-center">
@@ -155,7 +155,7 @@ export function StudyScreen({ uid, classId, className, cards, init, resumed, onR
             <Button variant="ghost" onClick={() => setConfirmSkip(true)}><SkipForward className="h-4 w-4" aria-hidden /> Skip this card</Button>
           )
         )}
-        {s.saveError && <p role="alert" className="text-sm text-[#B42318]"><strong>Not saved: </strong>{s.saveError}</p>}
+        {s.saveError && <p role="alert" className="text-sm text-[#FF8A80]"><strong>Not saved: </strong>{s.saveError}</p>}
       </div>
     </div>
   );

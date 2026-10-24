@@ -7,7 +7,7 @@ export function ScoreBlock({ last, threshold }: { last: LastAttempt; threshold: 
   return (
     <div className={`w-full rounded-xl2 px-5 py-4 text-left ${passed ? "bg-success" : "bg-danger"}`}>
       <p className="flex items-center gap-2 font-medium">
-        {passed ? <CheckCircle2 className="h-5 w-5 text-emerald" aria-hidden /> : <XCircle className="h-5 w-5 text-[#B42318]" aria-hidden />}
+        {passed ? <CheckCircle2 className="h-5 w-5 text-emerald" aria-hidden /> : <XCircle className="h-5 w-5 text-[#FF8A80]" aria-hidden />}
         {result.score}% — {passed ? "passed" : `below ${threshold}%, try again`}
       </p>
       <p className="mt-1 text-sm text-ink-muted">

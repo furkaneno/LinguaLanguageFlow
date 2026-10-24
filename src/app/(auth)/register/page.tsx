@@ -32,7 +32,7 @@ export default function RegisterPage() {
       <Field label="Password" type="password" autoComplete="new-password" value={v.password} onChange={set("password")} error={errors.password} hint="At least 8 characters." />
       <Field label="Confirm password" type="password" autoComplete="new-password" value={v.confirm} onChange={set("confirm")} error={errors.confirm} />
       <Button type="submit" loading={busy} className="w-full">Create account</Button>
-      <p className="text-center text-sm text-ink-muted">Already have an account? <Link href="/login" className="font-medium text-emerald underline">Sign in</Link></p>
+      <p className="text-center text-sm text-ink-muted">Already have an account? <Link href="/login" className="font-medium text-brand-light underline">Sign in</Link></p>
     </form>
   );
 }

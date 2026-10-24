@@ -5,7 +5,7 @@ import type { ButtonHTMLAttributes, ComponentProps } from "react";
 const base =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50";
 const variants = {
-  primary: "bg-emerald text-white hover:bg-emerald-dark",
+  primary: "bg-brand text-white hover:bg-brand-dark",
   secondary: "border border-line bg-cream-surface text-ink hover:bg-blush/50",
   ghost: "text-ink hover:bg-blush/50",
   danger: "bg-[#B42318] text-white hover:bg-[#912018]",

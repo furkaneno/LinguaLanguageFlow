@@ -98,7 +98,7 @@ export default function ClassPage() {
               </div>
               <div className="flex shrink-0">
                 <button onClick={() => setCardForm({ open: true, existing: c })} className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-blush/50" aria-label={`Edit card: ${c.englishText}`}><Pencil className="h-4 w-4" aria-hidden /></button>
-                <button onClick={() => setToDelete(c)} className="inline-flex h-11 w-11 items-center justify-center rounded-full text-[#B42318] hover:bg-danger" aria-label={`Delete card: ${c.englishText}`}><Trash2 className="h-4 w-4" aria-hidden /></button>
+                <button onClick={() => setToDelete(c)} className="inline-flex h-11 w-11 items-center justify-center rounded-full text-[#FF8A80] hover:bg-danger" aria-label={`Delete card: ${c.englishText}`}><Trash2 className="h-4 w-4" aria-hidden /></button>
               </div>
             </li>
           ))}

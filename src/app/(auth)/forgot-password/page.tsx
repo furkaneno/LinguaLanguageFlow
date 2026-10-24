@@ -30,7 +30,7 @@ export default function ForgotPasswordPage() {
       <div className="space-y-4">
         <h1 className="font-display text-3xl">Check your email</h1>
         <p role="status" className="rounded-xl bg-success px-4 py-3 text-sm">If an account exists for {email.trim()}, a reset link is on its way.</p>
-        <Link href="/login" className="text-sm font-medium text-emerald underline">Back to sign in</Link>
+        <Link href="/login" className="text-sm font-medium text-brand-light underline">Back to sign in</Link>
       </div>
     );
   }

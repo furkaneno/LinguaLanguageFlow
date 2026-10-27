@@ -6,7 +6,7 @@ import { APP_NAME, APP_TAGLINE } from "@/config/app";
 import "./globals.css";
 
 export const metadata: Metadata = { title: APP_NAME, description: APP_TAGLINE };
-export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#FAF5ED" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#3A1526" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

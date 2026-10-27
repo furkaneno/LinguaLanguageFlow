@@ -4,6 +4,8 @@ export interface ClassDoc {
 }
 export interface CardDoc {
   id: string; classId: string; englishText: string; turkishMeaning: string; createdAt: Date | null;
+  /** Position in the class (1 = first card added). Derived when loading, so it shifts if an earlier card is deleted. */
+  number: number;
   /** Spaced-repetition state; absent until the card is first completed. */
   level: number; nextReviewAt: Date | null; completedSessions: number;
 }

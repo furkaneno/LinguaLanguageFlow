@@ -58,7 +58,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
   // Reset per-card state when the card changes.
   useEffect(() => { stats.current = emptyStats(); setHintShown(false); setLast(null); }, [ctx.index]);
 
-    // Persist only at meaningful transitions (English passed, card completed, card skipped), never per UI event.
+  // Persist only at meaningful transitions (English passed, card completed, card skipped), never per UI event.
   useEffect(() => {
     const attemptCount = init.baseAttempts + ctx.attempts;
     let progress: Parameters<typeof saveSessionProgress>[2] | null = null;

@@ -59,7 +59,7 @@ export function StudyScreen({ uid, classId, className, cards, init, resumed, onR
     );
   }
 
-    if (ctx.status === "session_completed") {
+  if (ctx.status === "session_completed") {
     const attempts = init.baseAttempts + ctx.attempts;
     const skipped = ctx.cardIds.filter((id) => !ctx.completedIds.includes(id)).length;
     return (
@@ -97,7 +97,7 @@ export function StudyScreen({ uid, classId, className, cards, init, resumed, onR
         <Link href={back} className="shrink-0 text-ink-muted underline">Exit session</Link>
       </div>
       <div className="mt-3 flex items-center justify-between text-sm text-ink-muted">
-        <span>Card {ctx.index + 1} of {ctx.cardIds.length}</span>
+        <span>Card {ctx.index + 1} of {ctx.cardIds.length}{card ? ` · #${card.number}` : ""}</span>
         <span>{ctx.completedIds.length} done</span>
       </div>
       <div role="progressbar" aria-label="Session progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} className="mt-1.5 h-2 overflow-hidden rounded-full bg-blush">

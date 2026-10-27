@@ -81,7 +81,7 @@ function ImportBody({ uid, classId, existingKeys, onImported, onClose }: Omit<Pr
           </p>
           <div className="mt-2 max-h-64 overflow-auto rounded-xl border border-line">
             <table className="w-full text-left text-sm">
-              <thead className="sticky top-0 bg-blush/60"><tr>
+              <thead className="sticky top-0 bg-blush"><tr>
                 <th className="px-3 py-2 font-medium">Line</th><th className="px-3 py-2 font-medium">English</th>
                 <th className="px-3 py-2 font-medium">Turkish</th><th className="px-3 py-2 font-medium">Status</th>
               </tr></thead>

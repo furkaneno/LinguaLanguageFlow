@@ -99,8 +99,6 @@ export function studyReducer(ctx: StudyContext, ev: StudyEvent): StudyContext {
       if (next >= ctx.cardIds.length) return { ...ctx, status: "session_completed" };
       return { ...ctx, index: next, status: "english_ready", lastScore: null, notice: null };
     }
-    case "ERROR":
-      return { ...ctx, status: "session_error", notice: ev.message };
     case "SKIP": {
       // Moves on WITHOUT completing the card. Ignored while recording, evaluating or after completion.
       const allowed = ["english_ready", "english_failed", "turkish_ready", "turkish_failed"];
@@ -109,5 +107,7 @@ export function studyReducer(ctx: StudyContext, ev: StudyEvent): StudyContext {
       if (next >= ctx.cardIds.length) return { ...ctx, status: "session_completed", lastScore: null, notice: null };
       return { ...ctx, index: next, status: "english_ready", lastScore: null, notice: null };
     }
+    case "ERROR":
+      return { ...ctx, status: "session_error", notice: ev.message };
   }
 }

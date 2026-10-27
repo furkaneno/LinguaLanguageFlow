@@ -1,6 +1,6 @@
 import {
   collection, deleteDoc, deleteField, doc, getDoc, getDocs, increment, limit, orderBy, query,
-  serverTimestamp, setDoc, updateDoc, writeBatch, type DocumentData, type DocumentSnapshot, type Timestamp,
+  serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch, type DocumentData, type DocumentSnapshot,
 } from "firebase/firestore";
 import { LIMITS } from "@/config/app";
 import { chunk, type ImportRow } from "@/lib/import/parse";
@@ -24,7 +24,7 @@ function toCard(d: DocumentSnapshot<DocumentData>, classId: string): CardDoc {
   const x = d.data() ?? {};
   const p = (x.learningProgress ?? {}) as Record<string, unknown>;
   return {
-    id: d.id, classId, englishText: x.englishText ?? "", turkishMeaning: x.turkishMeaning ?? "", createdAt: date(x.createdAt),
+    id: d.id, classId, englishText: x.englishText ?? "", turkishMeaning: x.turkishMeaning ?? "", createdAt: date(x.createdAt), number: 0,
     level: typeof p.level === "number" ? p.level : 0, nextReviewAt: date(p.nextReviewAt),
     completedSessions: typeof p.completedSessions === "number" ? p.completedSessions : 0,
   };
@@ -64,7 +64,7 @@ export async function deleteClass(uid: string, id: string, onProgress?: (deleted
 
 export async function listCards(uid: string, classId: string): Promise<CardDoc[]> {
   const snap = await getDocs(query(cardsCol(uid, classId), orderBy("createdAt", "asc")));
-  return snap.docs.map((d) => toCard(d, classId));
+  return snap.docs.map((d, i) => ({ ...toCard(d, classId), number: i + 1 }));
 }
 
 export async function createCard(uid: string, classId: string, input: CardInput) {
@@ -101,14 +101,15 @@ export async function importCards(
   onProgress?: (done: number, total: number) => void,
 ) {
   let done = 0;
+  const base = Date.now(); // distinct, increasing createdAt per row so the pasted order is kept (one batch shares a server timestamp)
   for (const part of chunk(rows)) {
     const batch = writeBatch(getDb());
-    for (const r of part) {
+    part.forEach((r, i) => {
       batch.set(doc(cardsCol(uid, classId)), {
         englishText: r.english, turkishMeaning: r.turkish, ownerId: uid, classId,
-        createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+        createdAt: Timestamp.fromMillis(base + done + i), updatedAt: serverTimestamp(),
       });
-    }
+    });
     batch.update(classRef(uid, classId), { cardCount: increment(part.length), updatedAt: serverTimestamp() });
     await batch.commit();
     done += part.length;

@@ -69,4 +69,26 @@ describe("study machine", () => {
     const snap = { cardIds: ["x"], index: 0, completedIds: ["x"], stage: "turkish" as const };
     expect(run([{ type: "LOADED", cardIds: ["a", "b"], resume: snap }])).toMatchObject({ status: "english_ready", index: 0 });
   });
+
+  it("skipping moves on without completing the card", () => {
+    const c = studyReducer(load(), { type: "SKIP" });
+    expect(c).toMatchObject({ index: 1, status: "english_ready", completedIds: [] });
+  });
+  it("can skip from a failed stage but not while recording or evaluating", () => {
+    const failed = run(english(10), load());
+    expect(studyReducer(failed, { type: "SKIP" }).index).toBe(1);
+    const rec = run([{ type: "START_RECORDING" }], load());
+    expect(studyReducer(rec, { type: "SKIP" })).toBe(rec);
+    const evaluating = run([{ type: "START_RECORDING" }, { type: "STOP_RECORDING" }], load());
+    expect(studyReducer(evaluating, { type: "SKIP" })).toBe(evaluating);
+  });
+  it("skipping the last card ends the session with nothing completed", () => {
+    const c = studyReducer(load(["only"]), { type: "SKIP" });
+    expect(c.status).toBe("session_completed");
+    expect(c.completedIds).toEqual([]);
+  });
+  it("cannot skip a card that is already completed (no double advance)", () => {
+    const done = run([...english(90), ...english(90)], load());
+    expect(studyReducer(done, { type: "SKIP" })).toBe(done);
+  });
 });

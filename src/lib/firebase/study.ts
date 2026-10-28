@@ -1,6 +1,7 @@
 import {
-  addDoc, collection, doc, getDocs, increment, limit, query, serverTimestamp, setDoc, Timestamp, updateDoc, where,
+  addDoc, collection, deleteField, doc, getDoc, getDocs, increment, limit, query, serverTimestamp, setDoc, Timestamp, updateDoc, where,
 } from "firebase/firestore";
+import type { StudyPlace } from "@/lib/study/order";
 import { nextSchedule } from "@/lib/study/schedule";
 import type { SessionDoc } from "@/types";
 import { getDb } from "./client";
@@ -69,3 +70,21 @@ export async function recordCardCompletion(uid: string, classId: string, cardId:
 
 export const touchClassStudied = (uid: string, classId: string) =>
   updateDoc(doc(getDb(), "users", uid, "classes", classId), { lastStudiedAt: serverTimestamp() });
+
+// The "continue where I left off" place lives in the user's profile document (users/{uid}.studyPlaces.{classId}),
+// which the existing security rules already restrict to its owner.
+const userRef = (uid: string) => doc(getDb(), "users", uid);
+
+export async function getPlace(uid: string, classId: string): Promise<StudyPlace | null> {
+  const snap = await getDoc(userRef(uid));
+  const places = snap.data()?.studyPlaces as Record<string, { cardId?: unknown; index?: unknown }> | undefined;
+  const raw = places?.[classId];
+  if (!raw || typeof raw.index !== "number") return null;
+  return { cardId: typeof raw.cardId === "string" ? raw.cardId : null, index: raw.index };
+}
+
+export const savePlace = (uid: string, classId: string, p: StudyPlace) =>
+  setDoc(userRef(uid), { studyPlaces: { [classId]: { cardId: p.cardId, index: p.index, updatedAt: serverTimestamp() } } }, { merge: true });
+
+export const clearPlace = (uid: string, classId: string) =>
+  setDoc(userRef(uid), { studyPlaces: { [classId]: deleteField() } }, { merge: true });

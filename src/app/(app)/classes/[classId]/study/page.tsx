@@ -6,20 +6,24 @@ import { Splash } from "@/components/layout/Splash";
 import { StartPicker, type Choice } from "@/components/study/StartPicker";
 import { StudyScreen } from "@/components/study/StudyScreen";
 import { LinkButton } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 import type { SessionInit } from "@/hooks/useStudySession";
 import { firestoreErrorMessage, getClass, listCards } from "@/lib/firebase/repo";
-import { abandonSession, createSession, findActiveSession } from "@/lib/firebase/study";
-import { orderForSession } from "@/lib/study/order";
-import type { CardDoc, SessionDoc } from "@/types";
+import { abandonSession, clearPlace, createSession, findActiveSession, getPlace, savePlace } from "@/lib/firebase/study";
+import { mainRun, orderForSession, resolveStartIndex, type StudyPlace } from "@/lib/study/order";
+import type { CardDoc } from "@/types";
 
 type State =
   | { phase: "loading" }
   | { phase: "message"; title: string; body: string }
-  | { phase: "pick"; name: string; cards: CardDoc[]; active: SessionDoc | null; busy: boolean }
-  | { phase: "ready"; key: number; name: string; cards: Map<string, CardDoc>; init: SessionInit; resumed: boolean };
+  | { phase: "pick"; name: string; cards: CardDoc[]; place: StudyPlace | null; busy: boolean }
+  | { phase: "ready"; key: number; name: string; cards: Map<string, CardDoc>; init: SessionInit };
+
+const byNumber = (cards: CardDoc[]) => [...cards].sort((a, b) => a.number - b.number);
 
 export default function StudyPage() {
   const uid = useUid();
+  const toast = useToast();
   const { classId } = useParams<{ classId: string }>();
   const [state, setState] = useState<State>({ phase: "loading" });
   const started = useRef(false);
@@ -27,14 +31,14 @@ export default function StudyPage() {
   const load = useCallback(async () => {
     setState({ phase: "loading" });
     try {
-      const [cls, cards] = await Promise.all([getClass(uid, classId), listCards(uid, classId)]);
+      const [cls, cards, place, active] = await Promise.all([
+        getClass(uid, classId), listCards(uid, classId),
+        getPlace(uid, classId).catch(() => null), findActiveSession(uid, classId).catch(() => null),
+      ]);
       if (!cls) return setState({ phase: "message", title: "Class not found", body: "It may have been deleted." });
       if (cards.length === 0) return setState({ phase: "message", title: "This class is empty", body: "Add at least one card before you start learning." });
-      const ids = new Set(cards.map((c) => c.id));
-      let active = await findActiveSession(uid, classId);
-      const usable = active && active.cardIds.length > 0 && active.currentIndex < active.cardIds.length && active.cardIds.every((id) => ids.has(id));
-      if (active && !usable) { await abandonSession(uid, active.id); active = null; } // cards changed since; its order is no longer valid
-      setState({ phase: "pick", name: cls.name, cards, active, busy: false });
+      if (active) abandonSession(uid, active.id).catch(() => {}); // old unfinished runs are never resumed; your place is kept separately
+      setState({ phase: "pick", name: cls.name, cards, place, busy: false });
     } catch (e) {
       setState({ phase: "message", title: "Couldn't load the session", body: firestoreErrorMessage(e) });
     }
@@ -44,30 +48,40 @@ export default function StudyPage() {
 
   const pick = useCallback(async (choice: Choice) => {
     if (state.phase !== "pick" || state.busy) return;
-    const { name, cards, active } = state;
+    const { name, cards, place } = state;
     setState({ ...state, busy: true });
     try {
-      const map = new Map(cards.map((c) => [c.id, c]));
-      if (choice === "resume" && active) {
-        return setState({
-          phase: "ready", key: Date.now(), name, cards: map, resumed: true,
-          init: { sessionId: active.id, cardIds: active.cardIds, baseAttempts: active.attemptCount,
-            resume: { cardIds: active.cardIds, index: active.currentIndex, completedIds: active.completedCardIds, stage: active.currentStage } },
-        });
+      let init: Omit<SessionInit, "sessionId">;
+      if (choice === "continue") {
+        const run = mainRun(byNumber(cards).map((c) => c.id), place);
+        init = { ...run, baseAttempts: 0, listTotal: cards.length, remember: true };
+      } else {
+        const ids = orderForSession(cards, choice).map((c) => c.id);
+        init = { cardIds: ids, startIndex: 0, indexOffset: 0, baseAttempts: 0, listTotal: cards.length, remember: false };
       }
-      if (active) await abandonSession(uid, active.id); // a new order replaces the unfinished session
-      const ids = orderForSession(cards, choice === "resume" ? "sequential" : choice).map((c) => c.id);
-      const sessionId = await createSession(uid, classId, ids);
-      setState({ phase: "ready", key: Date.now(), name, cards: map, resumed: false, init: { sessionId, cardIds: ids, baseAttempts: 0 } });
+      const sessionId = await createSession(uid, classId, init.cardIds);
+      setState({ phase: "ready", key: Date.now(), name, cards: new Map(cards.map((c) => [c.id, c])), init: { ...init, sessionId } });
     } catch (e) {
       setState({ phase: "message", title: "Couldn't start the session", body: firestoreErrorMessage(e) });
     }
   }, [state, uid, classId]);
 
-  const restart = useCallback(async (abandonCurrent: boolean) => {
-    if (abandonCurrent && state.phase === "ready") await abandonSession(uid, state.init.sessionId).catch(() => {});
-    await load();
-  }, [state, uid, load]);
+  const setPlace = useCallback(async (cardNumber: number) => {
+    if (state.phase !== "pick" || state.busy) return;
+    const card = state.cards.find((c) => c.number === cardNumber);
+    if (!card) return;
+    const place: StudyPlace = { cardId: card.id, index: card.number - 1 };
+    setState({ ...state, busy: true });
+    try { await savePlace(uid, classId, place); toast(`Your place is now card #${cardNumber}`); setState({ ...state, place, busy: false }); }
+    catch (e) { toast(firestoreErrorMessage(e), "error"); setState({ ...state, busy: false }); }
+  }, [state, uid, classId, toast]);
+
+  const resetPlace = useCallback(async () => {
+    if (state.phase !== "pick" || state.busy) return;
+    setState({ ...state, busy: true });
+    try { await clearPlace(uid, classId); toast("Your place is back at card #1"); setState({ ...state, place: null, busy: false }); }
+    catch (e) { toast(firestoreErrorMessage(e), "error"); setState({ ...state, busy: false }); }
+  }, [state, uid, classId, toast]);
 
   if (state.phase === "loading") return <Splash label="Preparing your session" />;
   if (state.phase === "message") {
@@ -80,11 +94,12 @@ export default function StudyPage() {
     );
   }
   if (state.phase === "pick") {
-    const a = state.active;
-    return <StartPicker classId={classId} className={state.name} cardCount={state.cards.length} busy={state.busy}
-      resume={a ? { position: a.currentIndex + 1, total: a.cardIds.length, done: a.completedCardIds.length } : null}
-      onPick={(c) => void pick(c)} />;
+    const ordered = byNumber(state.cards);
+    const start = state.place ? resolveStartIndex(ordered.map((c) => c.id), state.place) : null;
+    const shown = start !== null && ordered[start] ? { number: ordered[start]!.number } : null;
+    return <StartPicker key={shown?.number ?? 0} classId={classId} className={state.name} cardCount={state.cards.length} busy={state.busy}
+      place={shown} onPick={(c) => void pick(c)} onSetPlace={(n) => void setPlace(n)} onResetPlace={() => void resetPlace()} />;
   }
   return <StudyScreen key={state.key} uid={uid} classId={classId} className={state.name} cards={state.cards}
-    init={state.init} resumed={state.resumed} onRestart={(a) => void restart(a)} />;
+    init={state.init} onRestart={() => void load()} />;
 }

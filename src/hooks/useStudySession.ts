@@ -1,7 +1,8 @@
 "use client";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { ENGLISH_PASS_THRESHOLD, SPEECH, TURKISH_PASS_THRESHOLD } from "@/config/app";
-import { recordAttempt, recordCardCompletion, saveSessionProgress, touchClassStudied, type CardStats } from "@/lib/firebase/study";
+import { clearPlace, recordAttempt, recordCardCompletion, savePlace, saveSessionProgress, touchClassStudied, type CardStats } from "@/lib/firebase/study";
+import { nextPlace, type StudyPlace } from "@/lib/study/order";
 import { BrowserSynthesisProvider } from "@/lib/speech/browserSynthesis";
 import { lexicalTurkishEvaluator, recognitionMatchAssessor } from "@/lib/speech/assessment";
 import type { SpeechRecognitionProvider, SpeechSynthesisProvider } from "@/lib/speech/types";
@@ -11,7 +12,18 @@ import { initialContext, studyReducer, type StudySnapshot } from "@/lib/study/ma
 import type { ScoreResult } from "@/lib/text/similarity";
 import type { CardDoc } from "@/types";
 
-export interface SessionInit { sessionId: string; cardIds: string[]; resume?: StudySnapshot; baseAttempts: number }
+export interface SessionInit {
+  sessionId: string; cardIds: string[]; baseAttempts: number;
+  /** Index in cardIds to begin at (the saved place for the main run, 0 otherwise). */
+  startIndex: number;
+  /** Position of cardIds[0] in the full list (non-zero only for very large lists). */
+  indexOffset: number;
+  /** Cards in the whole class list. */
+  listTotal: number;
+  /** Only the main "continue" run remembers where you stopped. */
+  remember: boolean;
+}
+type Next = StudyPlace | "finished";
 export interface LastAttempt { stage: Stage; result: ScoreResult; passed: boolean }
 const emptyStats = (): CardStats => ({ englishAttempts: 0, turkishAttempts: 0, lastEnglishScore: null, lastTurkishScore: null });
 
@@ -29,7 +41,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
   const stats = useRef<CardStats>(emptyStats());
   const completionWritten = useRef(new Set<string>());
   const lastPersisted = useRef("");
-  const persistedIndex = useRef(init.resume?.index ?? 0);
+  const persistedIndex = useRef(init.startIndex);
   const classTouched = useRef(false);
   const startedAt = useRef(Date.now());
   const [support, setSupport] = useState<{ recognition: boolean; secure: boolean; synthesis: boolean } | null>(null);
@@ -40,7 +52,9 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
 
   useEffect(() => {
     setSupport({ recognition: getRecognizer().isSupported(), secure: window.isSecureContext, synthesis: getSynth().isSupported() });
-    dispatch({ type: "LOADED", cardIds: init.cardIds, ...(init.resume ? { resume: init.resume } : {}) });
+    const resume: StudySnapshot | undefined = init.startIndex > 0
+      ? { cardIds: init.cardIds, index: init.startIndex, completedIds: [], stage: "english" } : undefined;
+    dispatch({ type: "LOADED", cardIds: init.cardIds, ...(resume ? { resume } : {}) });
     const check = () => setVoiceMissing(getSynth().hasVoiceFor(SPEECH.englishLang) === false);
     check();
     window.speechSynthesis?.addEventListener?.("voiceschanged", check);
@@ -59,9 +73,12 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
   useEffect(() => { stats.current = emptyStats(); setHintShown(false); setLast(null); }, [ctx.index]);
 
   // Persist only at meaningful transitions (English passed, card completed, card skipped), never per UI event.
+  // The saved place ("continue where I left off") is only updated by the main run (init.remember).
   useEffect(() => {
     const attemptCount = init.baseAttempts + ctx.attempts;
+    const placeAt = (i: number): Next => nextPlace(i, ctx.cardIds, init.indexOffset, init.listTotal);
     let progress: Parameters<typeof saveSessionProgress>[2] | null = null;
+    let next: Next | null = null;
     if (ctx.status === "turkish_ready") {
       persistedIndex.current = ctx.index;
       progress = { currentIndex: ctx.index, currentStage: "turkish", completedCardIds: ctx.completedIds, attemptCount, status: "active" };
@@ -70,6 +87,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
       persistedIndex.current = lastCard ? ctx.index : ctx.index + 1;
       progress = { currentIndex: lastCard ? ctx.index : ctx.index + 1, currentStage: lastCard ? "turkish" : "english",
         completedCardIds: ctx.completedIds, attemptCount, status: lastCard ? "completed" : "active" };
+      next = placeAt(ctx.index + 1);
       if (cardId && !completionWritten.current.has(cardId)) {
         completionWritten.current.add(cardId); // guards against duplicate completion writes
         recordCardCompletion(uid, classId, cardId, card?.level ?? 0, stats.current).catch(reportSaveError);
@@ -80,16 +98,21 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
       if (ctx.index === persistedIndex.current) return;
       persistedIndex.current = ctx.index;
       progress = { currentIndex: ctx.index, currentStage: "english", completedCardIds: ctx.completedIds, attemptCount, status: "active" };
+      next = placeAt(ctx.index);
     } else if (ctx.status === "session_completed") {
       if (lastPersisted.current.includes('"status":"completed"')) return; // already saved when the last card completed
       progress = { currentIndex: ctx.index, currentStage: "english", completedCardIds: ctx.completedIds, attemptCount, status: "completed" };
+      next = placeAt(ctx.cardIds.length);
     }
     if (!progress) return;
     const key = JSON.stringify(progress);
     if (key === lastPersisted.current) return;
     lastPersisted.current = key;
     saveSessionProgress(uid, init.sessionId, progress).catch(reportSaveError);
-  }, [ctx.status, ctx.index, ctx.cardIds.length, ctx.completedIds, ctx.attempts, cardId, card, uid, classId, init, reportSaveError]);
+    if (init.remember && next) {
+      (next === "finished" ? clearPlace(uid, classId) : savePlace(uid, classId, next)).catch(reportSaveError);
+    }
+  }, [ctx.status, ctx.index, ctx.cardIds, ctx.completedIds, ctx.attempts, cardId, card, uid, classId, init, reportSaveError]);
 
   // One automatic advance per completed card.
   useEffect(() => {

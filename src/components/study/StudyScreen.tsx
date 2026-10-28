@@ -10,7 +10,7 @@ import { ScoreBlock } from "./ScoreBlock";
 
 interface Props {
   uid: string; classId: string; className: string; cards: Map<string, CardDoc>;
-  init: SessionInit; resumed: boolean; onRestart: (abandonCurrent: boolean) => void;
+  init: SessionInit; onRestart: () => void;
 }
 
 const PROMPT: Record<string, string> = {
@@ -27,7 +27,7 @@ const PROMPT: Record<string, string> = {
 
 const fmt = (ms: number) => { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 
-export function StudyScreen({ uid, classId, className, cards, init, resumed, onRestart }: Props) {
+export function StudyScreen({ uid, classId, className, cards, init, onRestart }: Props) {
   const s = useStudySession(uid, classId, cards, init);
   const [confirmSkip, setConfirmSkip] = useState(false);
   const { ctx, card, stage, last } = s;
@@ -61,7 +61,7 @@ export function StudyScreen({ uid, classId, className, cards, init, resumed, onR
 
   if (ctx.status === "session_completed") {
     const attempts = init.baseAttempts + ctx.attempts;
-    const skipped = ctx.cardIds.filter((id) => !ctx.completedIds.includes(id)).length;
+    const skipped = ctx.cardIds.slice(init.startIndex).filter((id) => !ctx.completedIds.includes(id)).length;
     return (
       <div className="mx-auto max-w-md py-12 text-center">
         <CheckCircle2 className="mx-auto h-12 w-12 text-emerald" aria-hidden />
@@ -69,15 +69,18 @@ export function StudyScreen({ uid, classId, className, cards, init, resumed, onR
         <p className="mt-2 text-ink-muted">
           {skipped === 0 ? "Every card passed both steps." : "Skipped cards don't count as completed and will come up again in a later session."}
         </p>
+        {init.remember && init.indexOffset + ctx.cardIds.length >= init.listTotal && (
+          <p className="mt-2 text-sm text-ink-muted">You reached the end of the list, so your place is back at card #1.</p>
+        )}
         <dl className="mt-8 grid grid-cols-2 gap-3 text-left">
           <div className="rounded-xl2 border border-line bg-cream-surface p-4"><dt className="text-sm text-ink-muted">Cards completed</dt><dd className="text-2xl font-medium">{ctx.completedIds.length}</dd></div>
           {skipped > 0 && <div className="rounded-xl2 border border-line bg-cream-surface p-4"><dt className="text-sm text-ink-muted">Skipped</dt><dd className="text-2xl font-medium">{skipped}</dd></div>}
           <div className="rounded-xl2 border border-line bg-cream-surface p-4"><dt className="text-sm text-ink-muted">Scored attempts</dt><dd className="text-2xl font-medium">{attempts}</dd></div>
-          {!resumed && <div className="col-span-2 rounded-xl2 border border-line bg-cream-surface p-4"><dt className="text-sm text-ink-muted">Time</dt><dd className="text-2xl font-medium">{fmt(s.elapsedMs())}</dd></div>}
+          <div className="col-span-2 rounded-xl2 border border-line bg-cream-surface p-4"><dt className="text-sm text-ink-muted">Time</dt><dd className="text-2xl font-medium">{fmt(s.elapsedMs())}</dd></div>
         </dl>
         <div className="mt-8 flex flex-col gap-2 sm:flex-row sm:justify-center">
           <LinkButton href={back} variant="secondary">Back to class</LinkButton>
-          <Button onClick={() => onRestart(false)}>Start another session</Button>
+          <Button onClick={onRestart}>Start another session</Button>
         </div>
       </div>
     );
@@ -87,7 +90,7 @@ export function StudyScreen({ uid, classId, className, cards, init, resumed, onR
   const evaluating = ctx.status === "english_evaluating" || ctx.status === "turkish_evaluating";
   const done = ctx.status === "card_completed";
   const turkishFailed = ctx.status === "turkish_failed";
-  const pct = Math.round((ctx.completedIds.length / ctx.cardIds.length) * 100);
+  const pct = Math.round((Math.min(ctx.index + (done ? 1 : 0), ctx.cardIds.length) / ctx.cardIds.length) * 100);
   const threshold = stage === "english" ? s.thresholds.english : s.thresholds.turkish;
 
   return (
@@ -103,8 +106,8 @@ export function StudyScreen({ uid, classId, className, cards, init, resumed, onR
       <div role="progressbar" aria-label="Session progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} className="mt-1.5 h-2 overflow-hidden rounded-full bg-blush">
         <div className="h-full rounded-full bg-brand transition-all" style={{ width: `${pct}%` }} />
       </div>
-      {resumed && ctx.index === init.resume?.index && (
-        <p className="mt-3 text-sm text-ink-muted">Picked up where you left off. <button onClick={() => onRestart(true)} className="font-medium text-brand-light underline">Start over</button></p>
+      {init.remember && init.startIndex > 0 && ctx.index === init.startIndex && ctx.attempts === 0 && (
+        <p className="mt-3 text-sm text-ink-muted">Continuing from where you left off.</p>
       )}
 
       <div className="mt-8 flex flex-col items-center gap-6 text-center">

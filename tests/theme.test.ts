@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LANDMARK_COUNT, PATTERN_TILE } from "@/components/layout/patternMarkup";
+import { ANIMAL_COUNT, PATTERN_TILE } from "@/components/layout/patternMarkup";
 import { DEFAULT_THEME, PALETTES, THEME_IDS, THEME_INIT_SCRIPT, THEME_STORAGE_KEY, isThemeId, nextTheme, themeCss, type Palette } from "@/lib/theme";
 
 function luminance(hex: string) {
@@ -42,16 +42,16 @@ describe("themes", () => {
     expect(PALETTES.retro.scheme).toBe("light");
     expect(luminance(PALETTES.retro.brand)).toBeLessThan(0.1); // dark brown buttons and links
   });
-  it("only the retro theme has the landmark background; the others are plain colour", () => {
+  it("only the retro theme has the animal background; the others are plain colour", () => {
     expect(PALETTES.wine.pattern).toBe("none");
     expect(PALETTES.forest.pattern).toBe("none");
-    expect(PALETTES.retro.pattern).toBe("landmarks");
+    expect(PALETTES.retro.pattern).toBe("animals");
     const css = themeCss();
     expect(css).toMatch(/\[data-theme="forest"\]\{[^}]*--pattern-display:none;/);
     expect(css).toMatch(/\[data-theme="retro"\]\{[^}]*--pattern-display:block;/);
   });
-  it("the landmark tile uses a real icon in every slot and covers many countries", () => {
-    expect(LANDMARK_COUNT).toBeGreaterThanOrEqual(17);
+  it("the animal tile uses a real drawing in every slot and has plenty of animals", () => {
+    expect(ANIMAL_COUNT).toBeGreaterThanOrEqual(25);
     expect(PATTERN_TILE).not.toMatch(/translate\([^)]*\)"><\/g>/);
   });
   it("validates theme ids", () => {

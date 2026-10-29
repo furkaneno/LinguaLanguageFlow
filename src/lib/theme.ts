@@ -4,8 +4,8 @@ export const THEME_STORAGE_KEY = "lingua-theme";
 export interface Palette {
   name: string;
   scheme: "dark" | "light";
-  /** Decorative background: plain colour, or illustrated landmarks. */
-  pattern: "none" | "landmarks";
+  /** Decorative background: plain colour, or illustrated animals. */
+  pattern: "none" | "animals";
   patternOpacity: number;
   bg: string; surface: string; blush: string; blushAccent: string;
   brand: string; brandDark: string; brandLight: string; onBrand: string;
@@ -32,7 +32,7 @@ export const PALETTES = {
     success: "#165638", danger: "#6E1F1F", onDanger: "#FFD9D4", err: "#FF8A80",
   },
   retro: {
-    name: "Retro Brown", scheme: "light", pattern: "landmarks", patternOpacity: 0.17,
+    name: "Retro Brown", scheme: "light", pattern: "animals", patternOpacity: 0.17,
     bg: "#D9C4A3", surface: "#EBDCC3", blush: "#C9AE82", blushAccent: "#B8955F",
     brand: "#7A3B1A", brandDark: "#5C2A11", brandLight: "#7A3B1A", onBrand: "#F7EBD3",
     good: "#2C6B3A", goodDark: "#1F5A2E",

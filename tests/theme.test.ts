@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { LANDMARK_COUNT, PATTERN_TILE } from "@/components/layout/patternMarkup";
 import { DEFAULT_THEME, PALETTES, THEME_IDS, THEME_INIT_SCRIPT, THEME_STORAGE_KEY, isThemeId, nextTheme, themeCss, type Palette } from "@/lib/theme";
 
 function luminance(hex: string) {
@@ -24,10 +25,10 @@ const PAIRS: [keyof Palette, keyof Palette][] = [
 
 describe("themes", () => {
   it("has the three themes, with wine as the default", () => {
-    expect(THEME_IDS).toEqual(["wine", "forest", "sky"]);
+    expect(THEME_IDS).toEqual(["wine", "forest", "retro"]);
     expect(DEFAULT_THEME).toBe("wine");
   });
-  for (const id of ["wine", "forest", "sky"] as const) {
+  for (const id of ["wine", "forest", "retro"] as const) {
     it(`${id}: every text/background pair is readable`, () => {
       const p = PALETTES[id] as Palette;
       for (const [fg, bg] of PAIRS) {
@@ -35,28 +36,41 @@ describe("themes", () => {
       }
     });
   }
-  it("forest uses a dark green background with bright orange, sky a light blue background with dark blue", () => {
+  it("forest is a dark green background with bright orange; retro is a brown, paper-like theme", () => {
     expect(luminance(PALETTES.forest.bg)).toBeLessThan(0.05);
     expect(PALETTES.forest.brand).toBe("#FF7A1A");
-    expect(luminance(PALETTES.sky.bg)).toBeGreaterThan(0.7);
-    expect(luminance(PALETTES.sky.brand)).toBeLessThan(0.15);
+    expect(PALETTES.retro.scheme).toBe("light");
+    expect(luminance(PALETTES.retro.brand)).toBeLessThan(0.1); // dark brown buttons and links
+  });
+  it("only the retro theme has the landmark background; the others are plain colour", () => {
+    expect(PALETTES.wine.pattern).toBe("none");
+    expect(PALETTES.forest.pattern).toBe("none");
+    expect(PALETTES.retro.pattern).toBe("landmarks");
+    const css = themeCss();
+    expect(css).toMatch(/\[data-theme="forest"\]\{[^}]*--pattern-display:none;/);
+    expect(css).toMatch(/\[data-theme="retro"\]\{[^}]*--pattern-display:block;/);
+  });
+  it("the landmark tile uses a real icon in every slot and covers many countries", () => {
+    expect(LANDMARK_COUNT).toBeGreaterThanOrEqual(17);
+    expect(PATTERN_TILE).not.toMatch(/translate\([^)]*\)"><\/g>/);
   });
   it("validates theme ids", () => {
     expect(isThemeId("forest")).toBe(true);
     expect(isThemeId("toString")).toBe(false);
     expect(isThemeId(undefined)).toBe(false);
     expect(isThemeId("neon")).toBe(false);
+    expect(isThemeId("sky")).toBe(false); // the removed theme falls back to the default
   });
   it("cycles through themes and wraps around", () => {
     expect(nextTheme("wine")).toBe("forest");
-    expect(nextTheme("forest")).toBe("sky");
-    expect(nextTheme("sky")).toBe("wine");
+    expect(nextTheme("forest")).toBe("retro");
+    expect(nextTheme("retro")).toBe("wine");
   });
   it("generates CSS variables for every theme, and the default also applies to :root", () => {
     const css = themeCss();
     expect(css).toContain(':root,[data-theme="wine"]');
     expect(css).toContain('[data-theme="forest"]');
-    expect(css).toContain('[data-theme="sky"]');
+    expect(css).toContain('[data-theme="retro"]');
     expect(css).toContain("--c-brand:255 122 26;");
     expect(css).toContain("color-scheme:light;");
   });

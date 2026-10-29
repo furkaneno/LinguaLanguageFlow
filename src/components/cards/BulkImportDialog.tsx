@@ -22,7 +22,7 @@ export function BulkImportDialog({ open, onClose, ...rest }: Props) {
 
 const STATUS = {
   valid: { label: "Ready", Icon: CheckCircle2, cls: "text-emerald" },
-  invalid: { label: "Invalid", Icon: AlertTriangle, cls: "text-[#FF8A80]" },
+  invalid: { label: "Invalid", Icon: AlertTriangle, cls: "text-err" },
   duplicate: { label: "Duplicate", Icon: Copy, cls: "text-ink-muted" },
 } as const;
 

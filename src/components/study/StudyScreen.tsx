@@ -158,7 +158,7 @@ export function StudyScreen({ uid, classId, className, cards, init, onRestart }:
             <Button variant="ghost" onClick={() => setConfirmSkip(true)}><SkipForward className="h-4 w-4" aria-hidden /> Skip this card</Button>
           )
         )}
-        {s.saveError && <p role="alert" className="text-sm text-[#FF8A80]"><strong>Not saved: </strong>{s.saveError}</p>}
+        {s.saveError && <p role="alert" className="text-sm text-err"><strong>Not saved: </strong>{s.saveError}</p>}
       </div>
     </div>
   );

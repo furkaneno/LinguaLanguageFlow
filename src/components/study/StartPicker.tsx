@@ -58,7 +58,7 @@ function PlaceEditor({ cardCount, place, busy, onSetPlace, onResetPlace }:
         <Button type="submit" disabled={!valid || busy}>Set place</Button>
         <Button type="button" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
       </div>
-      {!valid && <p className="mt-2 text-sm text-[#FF8A80]"><strong>Error: </strong>Enter a number from 1 to {cardCount}.</p>}
+      {!valid && <p className="mt-2 text-sm text-err"><strong>Error: </strong>Enter a number from 1 to {cardCount}.</p>}
       {place && (
         <button type="button" disabled={busy} onClick={() => { onResetPlace(); setOpen(false); setValue("1"); }}
           className="mt-3 text-sm font-medium text-brand-light underline">Reset my place to #1</button>

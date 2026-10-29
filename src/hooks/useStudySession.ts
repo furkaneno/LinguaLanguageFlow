@@ -90,7 +90,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
       next = placeAt(ctx.index + 1);
       if (cardId && !completionWritten.current.has(cardId)) {
         completionWritten.current.add(cardId); // guards against duplicate completion writes
-        recordCardCompletion(uid, classId, cardId, card?.level ?? 0, stats.current).catch(reportSaveError);
+        recordCardCompletion(uid, classId, cardId, stats.current).catch(reportSaveError);
         if (!classTouched.current) { classTouched.current = true; touchClassStudied(uid, classId).catch(() => {}); }
       }
     } else if (ctx.status === "english_ready") {
@@ -112,7 +112,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
     if (init.remember && next) {
       (next === "finished" ? clearPlace(uid, classId) : savePlace(uid, classId, next)).catch(reportSaveError);
     }
-  }, [ctx.status, ctx.index, ctx.cardIds, ctx.completedIds, ctx.attempts, cardId, card, uid, classId, init, reportSaveError]);
+  }, [ctx.status, ctx.index, ctx.cardIds, ctx.completedIds, ctx.attempts, cardId, uid, classId, init, reportSaveError]);
 
   // One automatic advance per completed card.
   useEffect(() => {

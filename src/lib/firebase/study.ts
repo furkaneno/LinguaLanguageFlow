@@ -2,7 +2,6 @@ import {
   addDoc, collection, deleteField, doc, getDoc, getDocs, increment, limit, query, serverTimestamp, setDoc, Timestamp, updateDoc, where,
 } from "firebase/firestore";
 import type { StudyPlace } from "@/lib/study/order";
-import { nextSchedule } from "@/lib/study/schedule";
 import type { SessionDoc } from "@/types";
 import { getDb } from "./client";
 
@@ -54,17 +53,14 @@ export const recordAttempt = (uid: string, sessionId: string, a: AttemptRecord) 
 export interface CardStats { englishAttempts: number; turkishAttempts: number; lastEnglishScore: number | null; lastTurkishScore: number | null }
 
 /** Called once per card, only after both stages passed. Dotted paths keep lifetime counters intact. */
-export async function recordCardCompletion(uid: string, classId: string, cardId: string, prevLevel: number, s: CardStats) {
-  const sched = nextSchedule(prevLevel, s.englishAttempts + s.turkishAttempts);
+export async function recordCardCompletion(uid: string, classId: string, cardId: string, s: CardStats) {
   await updateDoc(doc(getDb(), "users", uid, "classes", classId, "cards", cardId), {
     "learningProgress.englishAttempts": increment(s.englishAttempts),
     "learningProgress.turkishAttempts": increment(s.turkishAttempts),
     "learningProgress.lastEnglishScore": s.lastEnglishScore,
     "learningProgress.lastTurkishScore": s.lastTurkishScore,
     "learningProgress.completedSessions": increment(1),
-    "learningProgress.level": sched.level,
     "learningProgress.lastStudiedAt": serverTimestamp(),
-    "learningProgress.nextReviewAt": Timestamp.fromDate(sched.nextReviewAt),
   });
 }
 

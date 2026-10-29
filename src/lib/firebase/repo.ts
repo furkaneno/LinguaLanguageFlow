@@ -22,11 +22,8 @@ function toClass(d: DocumentSnapshot<DocumentData>): ClassDoc {
 }
 function toCard(d: DocumentSnapshot<DocumentData>, classId: string): CardDoc {
   const x = d.data() ?? {};
-  const p = (x.learningProgress ?? {}) as Record<string, unknown>;
   return {
     id: d.id, classId, englishText: x.englishText ?? "", turkishMeaning: x.turkishMeaning ?? "", createdAt: date(x.createdAt), number: 0,
-    level: typeof p.level === "number" ? p.level : 0, nextReviewAt: date(p.nextReviewAt),
-    completedSessions: typeof p.completedSessions === "number" ? p.completedSessions : 0,
   };
 }
 

@@ -1,5 +1,5 @@
 "use client";
-import { CalendarClock, ListOrdered, MapPin, Play, Shuffle, type LucideIcon } from "lucide-react";
+import { ListOrdered, MapPin, Play, Shuffle, type LucideIcon } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Button, LinkButton } from "@/components/ui/button";
 import type { StudyOrder } from "@/lib/study/order";
@@ -86,8 +86,6 @@ export function StartPicker({ classId, className, cardCount, busy, place, onPick
             title="In order" body="From card #1 every time." />
           <Option icon={Shuffle} disabled={busy} onClick={() => onPick("shuffle")}
             title="Shuffled" body="A fresh random order every time." />
-          <Option icon={CalendarClock} disabled={busy} onClick={() => onPick("due_first")}
-            title="Due for review first" body="New and overdue cards first, then the rest by review date." />
         </div>
       </div>
 

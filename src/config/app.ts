@@ -18,6 +18,4 @@ export const SPEECH = {
   listenTimeoutMs: 12000,
   advanceDelayMs: 1400,
   maxSessionCards: 2000,
-  /** Review intervals in days, indexed by a card's level. */
-  intervalDays: [1, 3, 7, 14, 30, 60],
 } as const;

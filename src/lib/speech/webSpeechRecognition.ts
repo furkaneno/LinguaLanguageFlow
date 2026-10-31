@@ -38,7 +38,7 @@ export class WebSpeechRecognitionProvider implements SpeechRecognitionProvider {
 
   isSupported() { return getCtor() !== undefined; }
 
-  listen({ lang, timeoutMs }: ListenOptions): Promise<RecognitionResult> {
+  listen({ lang, timeoutMs, longForm = false, silenceMs = 3500 }: ListenOptions): Promise<RecognitionResult> {
     const Ctor = getCtor();
     if (!Ctor) return Promise.resolve({ ok: false, error: "unsupported" });
     if (!window.isSecureContext) return Promise.resolve({ ok: false, error: "insecure_context" });
@@ -47,14 +47,15 @@ export class WebSpeechRecognitionProvider implements SpeechRecognitionProvider {
     return new Promise((resolve) => {
       const rec = new Ctor();
       this.active = rec;
-      rec.lang = lang; rec.continuous = false; rec.interimResults = false; rec.maxAlternatives = 3;
+      rec.lang = lang; rec.continuous = longForm; rec.interimResults = false; rec.maxAlternatives = 3;
       let result: RecognitionResult | null = null;
       let error: SpeechErrorCode | null = null;
       let settled = false;
       const timer = setTimeout(() => rec.stop(), timeoutMs);
+      let quiet: ReturnType<typeof setTimeout> | undefined;
       const finish = (r: RecognitionResult) => {
         if (settled) return;
-        settled = true; clearTimeout(timer); this.active = null; resolve(r);
+        settled = true; clearTimeout(timer); clearTimeout(quiet); this.active = null; resolve(r);
       };
 
       rec.onresult = (e) => {
@@ -65,6 +66,8 @@ export class WebSpeechRecognitionProvider implements SpeechRecognitionProvider {
           : [segments.map((s) => s[0]?.transcript.trim() ?? "").join(" ")];
         const clean = alternatives.filter(Boolean);
         if (clean.length) result = { ok: true, alternatives: clean, confidence: segments[0]![0]?.confidence ?? null, provider: this.id };
+        // Long answers: each finished phrase restarts a short quiet timer; when it runs out, the answer is over.
+        if (longForm && clean.length) { clearTimeout(quiet); quiet = setTimeout(() => rec.stop(), silenceMs); }
       };
       rec.onerror = (e) => { error = mapError(e.error); };
       rec.onend = () => finish(result ?? { ok: false, error: error ?? "no_speech" });

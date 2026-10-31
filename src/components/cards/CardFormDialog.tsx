@@ -5,10 +5,11 @@ import { Dialog } from "@/components/ui/dialog";
 import { FormError, TextArea } from "@/components/ui/field";
 import { createCard, firestoreErrorMessage, updateCard } from "@/lib/firebase/repo";
 import { cardSchema, fieldErrors } from "@/lib/validation/schemas";
+import { LANGUAGES, type ClassLanguages } from "@/lib/languages";
 import type { CardDoc } from "@/types";
 
 interface Props {
-  open: boolean; onClose: () => void; uid: string; classId: string; existing?: CardDoc;
+  open: boolean; onClose: () => void; uid: string; classId: string; existing?: CardDoc; languages: ClassLanguages;
   onSaved: (message: string) => void;
 }
 
@@ -20,7 +21,7 @@ export function CardFormDialog({ open, onClose, ...rest }: Props) {
   );
 }
 
-function CardForm({ uid, classId, existing, onSaved, onClose }: Omit<Props, "open">) {
+function CardForm({ uid, classId, existing, languages, onSaved, onClose }: Omit<Props, "open">) {
   const [english, setEnglish] = useState(existing?.englishText ?? "");
   const [turkish, setTurkish] = useState(existing?.turkishMeaning ?? "");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -56,11 +57,11 @@ function CardForm({ uid, classId, existing, onSaved, onClose }: Omit<Props, "ope
     <form onSubmit={submit} className="space-y-4" noValidate>
       <FormError message={formError} />
       <div ref={englishRef}>
-        <TextArea label="English text" value={english} onChange={(e) => setEnglish(e.target.value)} error={errors.englishText}
-          rows={3} lang="en" placeholder="I paid the ultimate price for it." autoFocus />
+        <TextArea label={`Front · ${LANGUAGES[languages.front].name} (word or question)`} value={english} onChange={(e) => setEnglish(e.target.value)} error={errors.englishText}
+          rows={3} lang={languages.front} placeholder={LANGUAGES[languages.front].sampleFront} autoFocus />
       </div>
-      <TextArea label="Turkish meaning" value={turkish} onChange={(e) => setTurkish(e.target.value)} error={errors.turkishMeaning}
-        rows={3} lang="tr" placeholder="Bedelini ağır ödedim." />
+      <TextArea label={`Back · ${LANGUAGES[languages.back].name} (meaning or answer)`} value={turkish} onChange={(e) => setTurkish(e.target.value)} error={errors.turkishMeaning}
+        rows={5} lang={languages.back} placeholder={LANGUAGES[languages.back].sampleBack} />
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button type="button" variant="secondary" onClick={onClose}>{existing ? "Cancel" : "Done"}</Button>
         <Button type="submit" loading={busy}>{existing ? "Save changes" : "Save card"}</Button>

@@ -2,11 +2,11 @@ import { normalizeTurkish } from "./normalize";
 
 export interface Searchable { englishText: string; turkishMeaning: string; number: number }
 
-/** Folds case, punctuation and Turkish diacritics: "agir" finds "ağır", "istanbul" finds "İstanbul". */
-export const searchKey = (s: string): string => normalizeTurkish(s);
+/** Folds case, punctuation and accents: "agir" finds "ağır", "istanbul" finds "İstanbul", "cancion" finds "canción". */
+export const searchKey = (s: string): string => normalizeTurkish(s).normalize("NFD").replace(/\p{M}/gu, "");
 
 /**
- * Builds a search over English text, Turkish meaning and card number.
+ * Builds a search over both sides of the cards (any language) and the card number.
  * Every word you type must match (so "price bedelini" finds a card containing both).
  * "#12" matches card number 12 exactly; a plain number matches the number or the text.
  */

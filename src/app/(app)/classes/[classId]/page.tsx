@@ -14,6 +14,8 @@ import { FormError } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
 import { downloadCardsPdf } from "@/lib/export/downloadCardsPdf";
 import { cardKey } from "@/lib/import/parse";
+import { getClassLanguages } from "@/lib/firebase/languages";
+import { DEFAULT_LANGUAGES, pairName, type ClassLanguages } from "@/lib/languages";
 import { deleteCard, firestoreErrorMessage, getClass, listCards } from "@/lib/firebase/repo";
 import { createSearch } from "@/lib/text/search";
 import type { CardDoc, ClassDoc } from "@/types";
@@ -33,14 +35,15 @@ export default function ClassPage() {
   const [toDelete, setToDelete] = useState<CardDoc | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [languages, setLanguages] = useState<ClassLanguages>(DEFAULT_LANGUAGES);
   const [query, setQuery] = useState("");
   const [visible, setVisible] = useState(PAGE_SIZE);
   const deferredQuery = useDeferredValue(query);
 
   const load = useCallback(async () => {
     try {
-      const [c, list] = await Promise.all([getClass(uid, classId), listCards(uid, classId)]);
-      setCls(c); setCards(list); setError(null);
+      const [c, list, l] = await Promise.all([getClass(uid, classId), listCards(uid, classId), getClassLanguages(uid, classId).catch(() => DEFAULT_LANGUAGES)]);
+      setCls(c); setCards(list); setLanguages(l); setError(null);
     } catch (e) { setError(firestoreErrorMessage(e)); setCls((c) => (c === undefined ? null : c)); }
   }, [uid, classId]);
   useEffect(() => { void load(); }, [load]);
@@ -62,7 +65,7 @@ export default function ClassPage() {
   async function exportPdf() {
     if (!cls || exporting) return;
     setExporting(true);
-    try { await downloadCardsPdf(cls.name, cards); toast("PDF downloaded"); }
+    try { await downloadCardsPdf(cls.name, cards, languages); toast("PDF downloaded"); }
     catch { toast("Couldn't create the PDF. Please try again.", "error"); }
     finally { setExporting(false); }
   }
@@ -86,7 +89,7 @@ export default function ClassPage() {
         <div className="min-w-0">
           <h1 className="font-display text-4xl tracking-tight">{cls.name}</h1>
           {cls.description && <p className="mt-1 max-w-xl text-ink-muted">{cls.description}</p>}
-          <p className="mt-2 text-sm text-ink-muted">{cards.length} {cards.length === 1 ? "card" : "cards"}</p>
+          <p className="mt-2 text-sm text-ink-muted">{cards.length} {cards.length === 1 ? "card" : "cards"} · {pairName(languages)}</p>
         </div>
         <Button variant="ghost" onClick={() => setEditClass(true)}><Pencil className="h-4 w-4" aria-hidden /> Edit class</Button>
       </div>
@@ -109,7 +112,7 @@ export default function ClassPage() {
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" aria-hidden />
             <input
               type="search" value={query} onChange={(e) => setQuery(e.target.value)}
-              aria-label="Search cards" placeholder="Search English, Turkish or #number"
+              aria-label="Search cards" placeholder="Search cards, or type #number"
               className="w-full rounded-full border border-line bg-cream-surface py-3 pl-11 pr-12 text-base text-ink placeholder:text-ink-muted/70"
             />
             {query && (
@@ -126,7 +129,7 @@ export default function ClassPage() {
       {cards.length === 0 ? (
         <div className="mt-8 rounded-xl2 border border-dashed border-line bg-cream-surface px-6 py-12 text-center">
           <h2 className="font-display text-2xl">This class is empty</h2>
-          <p className="mx-auto mt-2 max-w-sm text-ink-muted">Add a word, phrase or whole sentence with its Turkish meaning, or paste many at once.</p>
+          <p className="mx-auto mt-2 max-w-sm text-ink-muted">Add a word, a question or a whole sentence with its answer, or paste many at once.</p>
           <Button className="mt-5" onClick={() => setCardForm({ open: true })}>Add a card</Button>
         </div>
       ) : filtered.length === 0 ? (
@@ -142,8 +145,8 @@ export default function ClassPage() {
               <li key={c.id} className="flex items-start gap-3 p-4 sm:p-5">
                 <span className="mt-1 w-11 shrink-0 text-sm tabular-nums text-ink-muted" aria-label={`Card number ${c.number}`}>#{c.number}</span>
                 <div className="min-w-0 flex-1">
-                  <p lang="en" className="break-words text-lg">{c.englishText}</p>
-                  <p lang="tr" className="mt-1 break-words text-ink-muted">{c.turkishMeaning}</p>
+                  <p lang={languages.front} className="break-words text-lg">{c.englishText}</p>
+                  <p lang={languages.back} className="mt-1 whitespace-pre-line break-words text-ink-muted">{c.turkishMeaning}</p>
                 </div>
                 <div className="flex shrink-0">
                   <button onClick={() => setCardForm({ open: true, existing: c })} className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-blush/50" aria-label={`Edit card ${c.number}: ${c.englishText}`}><Pencil className="h-4 w-4" aria-hidden /></button>
@@ -162,13 +165,13 @@ export default function ClassPage() {
         </>
       )}
 
-      <CardFormDialog open={cardForm.open} uid={uid} classId={classId}
+      <CardFormDialog open={cardForm.open} uid={uid} classId={classId} languages={languages}
         {...(cardForm.existing ? { existing: cardForm.existing } : {})}
         onClose={() => { setCardForm({ open: false }); void load(); }}
         onSaved={(m) => { toast(m); void load(); }} />
-      <BulkImportDialog open={importOpen} onClose={() => setImportOpen(false)} uid={uid} classId={classId}
+      <BulkImportDialog open={importOpen} onClose={() => setImportOpen(false)} uid={uid} classId={classId} languages={languages}
         existingKeys={existingKeys} onImported={(n) => { toast(`Imported ${n} ${n === 1 ? "card" : "cards"}`); void load(); }} />
-      <ClassFormDialog open={editClass} onClose={() => setEditClass(false)} uid={uid} existing={cls}
+      <ClassFormDialog open={editClass} onClose={() => setEditClass(false)} uid={uid} existing={cls} languages={languages}
         onSaved={(m) => { toast(m); void load(); }} />
       <ConfirmDialog open={!!toDelete} onClose={() => setToDelete(null)} onConfirm={confirmDelete} busy={deleting}
         title="Delete this card?" confirmLabel="Delete card"

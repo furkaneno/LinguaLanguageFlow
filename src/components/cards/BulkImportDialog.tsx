@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { FormError, TextArea } from "@/components/ui/field";
 import { parseBulkText, parseCsv } from "@/lib/import/parse";
+import { LANGUAGES, type ClassLanguages } from "@/lib/languages";
 import { firestoreErrorMessage, importCards } from "@/lib/firebase/repo";
 
 interface Props {
   open: boolean; onClose: () => void; uid: string; classId: string;
-  existingKeys: string[]; onImported: (count: number) => void;
+  existingKeys: string[]; languages: ClassLanguages; onImported: (count: number) => void;
 }
 
 export function BulkImportDialog({ open, onClose, ...rest }: Props) {
@@ -26,7 +27,8 @@ const STATUS = {
   duplicate: { label: "Duplicate", Icon: Copy, cls: "text-ink-muted" },
 } as const;
 
-function ImportBody({ uid, classId, existingKeys, onImported, onClose }: Omit<Props, "open">) {
+function ImportBody({ uid, classId, existingKeys, languages, onImported, onClose }: Omit<Props, "open">) {
+  const frontName = LANGUAGES[languages.front].name, backName = LANGUAGES[languages.back].name;
   const [text, setText] = useState("");
   const [fileError, setFileError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,11 +65,11 @@ function ImportBody({ uid, classId, existingKeys, onImported, onClose }: Omit<Pr
   return (
     <div className="space-y-4">
       <p className="text-sm text-ink-muted">
-        Paste one card per line as <code className="rounded bg-blush/60 px-1.5 py-0.5">English text | Turkish meaning</code>. Or choose a UTF-8 CSV with <code className="rounded bg-blush/60 px-1.5 py-0.5">english</code> and <code className="rounded bg-blush/60 px-1.5 py-0.5">turkish</code> column headers; it loads here so you can fix rows first.
+        Paste one card per line as <code className="rounded bg-blush/60 px-1.5 py-0.5">front | back</code> ({frontName} | {backName}). Or choose a UTF-8 CSV with <code className="rounded bg-blush/60 px-1.5 py-0.5">front</code> and <code className="rounded bg-blush/60 px-1.5 py-0.5">back</code> column headers (<code className="rounded bg-blush/60 px-1.5 py-0.5">question</code> and <code className="rounded bg-blush/60 px-1.5 py-0.5">answer</code> also work); it loads here so you can fix rows first.
       </p>
       <FormError message={error ?? fileError} />
       <TextArea label="Cards" rows={7} value={text} onChange={(e) => setText(e.target.value)} disabled={busy}
-        placeholder={"almost fumbled it | Neredeyse elinden kaçırıyordu\nelevates my life | Hayatımı yükseltiyor"} />
+        placeholder={`${LANGUAGES[languages.front].sampleFront} | ${LANGUAGES[languages.back].sampleBack}`} />
       <div>
         <label className="text-sm font-medium" htmlFor="csv">CSV file</label>
         <input id="csv" type="file" accept=".csv,text/csv" disabled={busy} onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ""; }}
@@ -82,8 +84,8 @@ function ImportBody({ uid, classId, existingKeys, onImported, onClose }: Omit<Pr
           <div className="mt-2 max-h-64 overflow-auto rounded-xl border border-line">
             <table className="w-full text-left text-sm">
               <thead className="sticky top-0 bg-blush"><tr>
-                <th className="px-3 py-2 font-medium">Line</th><th className="px-3 py-2 font-medium">English</th>
-                <th className="px-3 py-2 font-medium">Turkish</th><th className="px-3 py-2 font-medium">Status</th>
+                <th className="px-3 py-2 font-medium">Line</th><th className="px-3 py-2 font-medium">{frontName}</th>
+                <th className="px-3 py-2 font-medium">{backName}</th><th className="px-3 py-2 font-medium">Status</th>
               </tr></thead>
               <tbody>
                 {preview.rows.map((r) => {

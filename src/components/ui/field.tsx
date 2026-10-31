@@ -1,4 +1,4 @@
-import { useId, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import { useId, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 
 const control =
   "w-full rounded-xl border border-line bg-cream-surface px-4 py-3 text-base text-ink placeholder:text-ink-muted/70 aria-[invalid=true]:border-[#B42318]";
@@ -30,4 +30,15 @@ export function TextArea({ label, error, hint, ...rest }: Common & TextareaHTMLA
 export function FormError({ message }: { message: string | null }) {
   if (!message) return null;
   return <p role="alert" className="rounded-xl bg-danger px-4 py-3 text-sm text-on-danger"><strong>Error: </strong>{message}</p>;
+}
+
+export function SelectField({ label, hint, children, ...rest }: { label: string; hint?: string } & SelectHTMLAttributes<HTMLSelectElement>) {
+  const id = useId();
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium">{label}</label>
+      <select id={id} className={control} {...rest}>{children}</select>
+      {hint && <p className="mt-1.5 text-sm text-ink-muted">{hint}</p>}
+    </div>
+  );
 }

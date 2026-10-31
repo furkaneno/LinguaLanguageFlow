@@ -1,3 +1,4 @@
+import type { LangCode } from "@/lib/languages";
 import type { ScoreResult } from "@/lib/text/similarity";
 
 export type SpeechErrorCode =
@@ -8,7 +9,11 @@ export type RecognitionResult =
   | { ok: true; /** Recognizer hypotheses for the same audio, best first. */ alternatives: string[]; confidence: number | null; provider: string }
   | { ok: false; error: SpeechErrorCode };
 
-export interface ListenOptions { lang: string; timeoutMs: number }
+export interface ListenOptions {
+  lang: string; timeoutMs: number;
+  /** Long answers: keep listening through pauses, and stop after `silenceMs` of quiet or when the user taps stop. */
+  longForm?: boolean; silenceMs?: number;
+}
 
 export interface SpeechRecognitionProvider {
   readonly id: string;
@@ -28,7 +33,7 @@ export interface SpeechSynthesisProvider {
   cancel(): void;
 }
 
-/** Scores English speech against the target. The default is a speech-recognition match, NOT phonetic scoring. */
-export interface PronunciationAssessmentProvider { readonly id: string; assess(target: string, alternatives: string[]): ScoreResult }
-/** Scores a spoken Turkish answer against the saved meaning. The default is a conservative lexical match. */
-export interface TurkishAnswerEvaluationProvider { readonly id: string; evaluate(target: string, alternatives: string[]): ScoreResult }
+/** Scores speech against the card text in the given language (default English). The default is a speech-recognition match, NOT phonetic scoring. */
+export interface PronunciationAssessmentProvider { readonly id: string; assess(target: string, alternatives: string[], lang?: LangCode): ScoreResult }
+/** Scores a spoken answer against the saved answer in the given language (default Turkish). The default is a conservative lexical match. */
+export interface TurkishAnswerEvaluationProvider { readonly id: string; evaluate(target: string, alternatives: string[], lang?: LangCode): ScoreResult }

@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { FormError } from "@/components/ui/field";
 import { useToast } from "@/components/ui/toast";
+import { getAllClassLanguages } from "@/lib/firebase/languages";
+import { DEFAULT_LANGUAGES, type ClassLanguages } from "@/lib/languages";
 import { deleteClass, firestoreErrorMessage, listClasses } from "@/lib/firebase/repo";
 import type { ClassDoc } from "@/types";
 
@@ -16,13 +18,17 @@ export default function DashboardPage() {
   const uid = useUid();
   const toast = useToast();
   const [classes, setClasses] = useState<ClassDoc[] | null>(null);
+  const [langs, setLangs] = useState<Record<string, ClassLanguages>>({});
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<{ open: boolean; existing?: ClassDoc }>({ open: false });
   const [toDelete, setToDelete] = useState<ClassDoc | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    try { setClasses(await listClasses(uid)); setError(null); }
+    try {
+      const [list, l] = await Promise.all([listClasses(uid), getAllClassLanguages(uid).catch(() => ({}))]);
+      setClasses(list); setLangs(l); setError(null);
+    }
     catch (e) { setError(firestoreErrorMessage(e)); setClasses((c) => c ?? []); }
   }, [uid]);
   useEffect(() => { void load(); }, [load]);
@@ -63,13 +69,13 @@ export default function DashboardPage() {
       ) : (
         <ul className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {classes.map((c) => (
-            <ClassCard key={c.id} c={c} onEdit={() => setForm({ open: true, existing: c })} onDelete={() => setToDelete(c)} />
+            <ClassCard key={c.id} c={c} languages={langs[c.id] ?? DEFAULT_LANGUAGES} onEdit={() => setForm({ open: true, existing: c })} onDelete={() => setToDelete(c)} />
           ))}
         </ul>
       )}
 
       <ClassFormDialog open={form.open} onClose={() => setForm({ open: false })} uid={uid}
-        {...(form.existing ? { existing: form.existing } : {})}
+        {...(form.existing ? { existing: form.existing, languages: langs[form.existing.id] ?? DEFAULT_LANGUAGES } : {})}
         onSaved={(m) => { toast(m); void load(); }} />
       <ConfirmDialog open={!!toDelete} onClose={() => setToDelete(null)} onConfirm={confirmDelete}
         busy={!!deleting} title="Delete this class?" confirmLabel="Delete class"

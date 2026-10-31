@@ -12,7 +12,7 @@ export default function Home() {
       <section className="flex flex-1 flex-col justify-center py-16">
         <h1 className="font-display text-5xl leading-[1.05] tracking-tight sm:text-6xl">{APP_TAGLINE}</h1>
         <p className="mt-6 max-w-xl text-lg text-ink-muted">
-          Save English words and sentences with their Turkish meanings. Read each one aloud, then say what it means. You move on when both are right.
+          Save words, sentences or interview questions with their answers, in English, Turkish or Spanish. Read each card aloud, then say the answer. You move on when both are right.
         </p>
         <div className="mt-8"><LinkButton href="/register">Create your account</LinkButton></div>
       </section>

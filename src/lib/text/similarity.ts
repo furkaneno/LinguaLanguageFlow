@@ -1,4 +1,5 @@
-import { normalizeEnglish, normalizeTurkish, tokens } from "./normalize";
+import type { LangCode } from "@/lib/languages";
+import { normalizerFor, tokens } from "./normalize";
 
 export type ScoreType = "speech-recognition-match" | "text-similarity";
 
@@ -75,12 +76,15 @@ function score(
 }
 
 /** Honest label: this compares recognized speech to the target text. It is NOT a phonetic pronunciation score. */
+export const scoreSpoken = (target: string, recognized: string, lang: LangCode, scoreType: ScoreType) =>
+  score(target, recognized, normalizerFor(lang), scoreType);
+
 export const scoreEnglishSpeech = (target: string, recognized: string) =>
-  score(target, recognized, normalizeEnglish, "speech-recognition-match");
+  scoreSpoken(target, recognized, "en", "speech-recognition-match");
 
 /** Conservative lexical match against the saved Turkish meaning. Does not understand paraphrases. */
 export const scoreTurkishAnswer = (target: string, recognized: string) =>
-  score(target, recognized, normalizeTurkish, "text-similarity");
+  scoreSpoken(target, recognized, "tr", "text-similarity");
 
 /** Inclusive threshold; invalid scores never pass. */
 export const passes = (score: number | null | undefined, threshold: number): boolean =>

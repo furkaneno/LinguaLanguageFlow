@@ -20,8 +20,8 @@ export const cardKey = (en: string, tr: string) => `${normalizeEnglish(en)}|${no
 
 function validate(line: number, english: string, turkish: string, seen: Set<string>): ImportRow {
   const en = english.trim(), tr = turkish.trim();
-  if (!en) return { line, english: en, turkish: tr, status: "invalid", error: "English text is empty." };
-  if (!tr) return { line, english: en, turkish: tr, status: "invalid", error: "Turkish meaning is empty." };
+  if (!en) return { line, english: en, turkish: tr, status: "invalid", error: "The front side is empty." };
+  if (!tr) return { line, english: en, turkish: tr, status: "invalid", error: "The back side is empty." };
   if (en.length > LIMITS.textMax || tr.length > LIMITS.textMax)
     return { line, english: en, turkish: tr, status: "invalid", error: `Text is longer than ${LIMITS.textMax} characters.` };
   const key = cardKey(en, tr);
@@ -35,7 +35,7 @@ function summarize(rows: ImportRow[]): ImportPreview {
   return { rows, validCount: count("valid"), invalidCount: count("invalid"), duplicateCount: count("duplicate") };
 }
 
-/** Format: `English text | Turkish meaning`, one card per line. Splits on the first "|". Blank lines are ignored. */
+/** Format: `front | back`, one card per line. Splits on the first "|". Blank lines are ignored. */
 export function parseBulkText(text: string, existingKeys: Iterable<string> = []): ImportPreview {
   const seen = new Set(existingKeys);
   const rows: ImportRow[] = [];
@@ -76,12 +76,13 @@ export function parseCsvRecords(text: string): string[][] {
   return out;
 }
 
-/** CSV must be UTF-8 with a header row containing `english` and `turkish` columns (any order, case-insensitive). */
+/** CSV must be UTF-8 with a header row naming the front column (front, question, word, english) and the back column (back, answer, meaning, turkish). */
 export function parseCsv(text: string, existingKeys: Iterable<string> = []): ImportPreview | { error: string } {
   const records = parseCsvRecords(text);
   const header = records[0]?.map((h) => h.trim().toLowerCase()) ?? [];
-  const ei = header.indexOf("english"), ti = header.indexOf("turkish");
-  if (ei === -1 || ti === -1) return { error: 'CSV needs a header row with "english" and "turkish" columns.' };
+  const find = (names: string[]) => header.findIndex((h) => names.includes(h));
+  const ei = find(["front", "question", "word", "english"]), ti = find(["back", "answer", "meaning", "turkish"]);
+  if (ei === -1 || ti === -1) return { error: 'CSV needs a header row with "front" and "back" columns ("question" and "answer" also work).' };
   const seen = new Set(existingKeys);
   return summarize(records.slice(1).map((r, i) => validate(i + 2, r[ei] ?? "", r[ti] ?? "", seen)));
 }

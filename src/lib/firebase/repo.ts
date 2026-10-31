@@ -57,7 +57,7 @@ export async function deleteClass(uid: string, id: string, onProgress?: (deleted
     onProgress?.(deleted);
   }
   await deleteDoc(classRef(uid, id));
-  await setDoc(doc(getDb(), "users", uid), { studyPlaces: { [id]: deleteField() } }, { merge: true }).catch(() => {}); // forget its saved place
+  await setDoc(doc(getDb(), "users", uid), { studyPlaces: { [id]: deleteField() }, classLanguages: { [id]: deleteField() } }, { merge: true }).catch(() => {}); // forget its saved place and languages
 }
 
 export async function listCards(uid: string, classId: string): Promise<CardDoc[]> {

@@ -6,12 +6,15 @@ const BURGUNDY = "#4A1D32";
 const MUTED = "#77736D";
 
 /** Pure document definition (testable without a browser). Roboto covers Turkish letters. */
-export function buildCardsPdf(className: string, cards: ExportCard[], exportedAt: Date, appName: string): TDocumentDefinitions {
+export function buildCardsPdf(
+  className: string, cards: ExportCard[], exportedAt: Date, appName: string,
+  columns: { front: string; back: string } = { front: "English", back: "Turkish" },
+): TDocumentDefinitions {
   const date = exportedAt.toLocaleDateString("tr-TR");
   const header = [
     { text: "#", style: "th" },
-    { text: "English", style: "th" },
-    { text: "Turkish", style: "th" },
+    { text: columns.front, style: "th" },
+    { text: columns.back, style: "th" },
   ];
   const rows = cards.map((c) => [
     { text: String(c.number), color: MUTED },

@@ -1,3 +1,5 @@
+import type { LangCode } from "@/lib/languages";
+
 const CONTRACTIONS: Record<string, string> = {
   "i'm": "i am", "you're": "you are", "we're": "we are", "they're": "they are",
   "he's": "he is", "she's": "she is", "it's": "it is", "that's": "that is",
@@ -29,3 +31,12 @@ export function normalizeTurkish(input: string): string {
 }
 
 export const tokens = (normalized: string): string[] => (normalized ? normalized.split(" ") : []);
+
+/** Lowercase, drops accents and punctuation (including ¿ ¡), but keeps ñ distinct: "año" is not "ano". */
+export function normalizeSpanish(input: string): string {
+  const s = input.normalize("NFC").toLowerCase().replace(/ñ/g, "ny").normalize("NFD").replace(/\p{M}/gu, "");
+  return stripPunctuation(s).replace(/'/g, "").replace(/\s+/g, " ").trim();
+}
+
+export const normalizerFor = (lang: LangCode): ((s: string) => string) =>
+  lang === "tr" ? normalizeTurkish : lang === "es" ? normalizeSpanish : normalizeEnglish;

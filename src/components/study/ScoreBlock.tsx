@@ -12,8 +12,8 @@ export function ScoreBlock({ last, threshold }: { last: LastAttempt; threshold: 
       </p>
       <p className="mt-1 text-sm text-ink-muted">
         {stage === "english"
-          ? "Speech match: how closely what your device heard matches the text. It isn't a phonetic pronunciation score."
-          : "Answer match: how closely your words match the saved meaning. Different wording may score lower."}
+          ? "Speech match: how closely what your device heard matches the card. It isn't a phonetic pronunciation score."
+          : "Answer match: how closely your words match the saved answer. Different wording may score lower."}
       </p>
       {result.recognizedText && <p className="mt-2 text-sm">We heard: “{result.recognizedText}”</p>}
       {!passed && missed.length > 0 && <p className="mt-1 text-sm">Words to check: {missed.join(", ")}</p>}

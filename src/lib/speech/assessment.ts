@@ -1,4 +1,4 @@
-import { scoreEnglishSpeech, scoreTurkishAnswer, type ScoreResult } from "@/lib/text/similarity";
+import { scoreSpoken, type ScoreResult } from "@/lib/text/similarity";
 import type { PronunciationAssessmentProvider, TurkishAnswerEvaluationProvider } from "./types";
 
 /** Recognizers return several hypotheses for the same audio; we score each and keep the best. */
@@ -10,10 +10,10 @@ function best(alternatives: string[], score: (alt: string) => ScoreResult): Scor
 
 export const recognitionMatchAssessor: PronunciationAssessmentProvider = {
   id: "recognition-match",
-  assess: (target, alts) => best(alts, (a) => scoreEnglishSpeech(target, a)),
+  assess: (target, alts, lang = "en") => best(alts, (a) => scoreSpoken(target, a, lang, "speech-recognition-match")),
 };
 
 export const lexicalTurkishEvaluator: TurkishAnswerEvaluationProvider = {
   id: "lexical-match",
-  evaluate: (target, alts) => best(alts, (a) => scoreTurkishAnswer(target, a)),
+  evaluate: (target, alts, lang = "tr") => best(alts, (a) => scoreSpoken(target, a, lang, "text-similarity")),
 };

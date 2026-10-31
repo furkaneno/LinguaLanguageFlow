@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { ENGLISH_PASS_THRESHOLD, SPEECH, TURKISH_PASS_THRESHOLD } from "@/config/app";
+import { LANGUAGES, type ClassLanguages } from "@/lib/languages";
 import { clearPlace, recordAttempt, recordCardCompletion, savePlace, saveSessionProgress, touchClassStudied, type CardStats } from "@/lib/firebase/study";
 import { nextPlace, type StudyPlace } from "@/lib/study/order";
 import { BrowserSynthesisProvider } from "@/lib/speech/browserSynthesis";
@@ -27,7 +28,7 @@ type Next = StudyPlace | "finished";
 export interface LastAttempt { stage: Stage; result: ScoreResult; passed: boolean }
 const emptyStats = (): CardStats => ({ englishAttempts: 0, turkishAttempts: 0, lastEnglishScore: null, lastTurkishScore: null });
 
-export function useStudySession(uid: string, classId: string, cards: Map<string, CardDoc>, init: SessionInit) {
+export function useStudySession(uid: string, classId: string, cards: Map<string, CardDoc>, init: SessionInit, languages: ClassLanguages) {
   const [ctx, dispatch] = useReducer(studyReducer, initialContext);
   const [last, setLast] = useState<LastAttempt | null>(null);
   const [hintShown, setHintShown] = useState(false);
@@ -55,7 +56,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
     const resume: StudySnapshot | undefined = init.startIndex > 0
       ? { cardIds: init.cardIds, index: init.startIndex, completedIds: [], stage: "english" } : undefined;
     dispatch({ type: "LOADED", cardIds: init.cardIds, ...(resume ? { resume } : {}) });
-    const check = () => setVoiceMissing(getSynth().hasVoiceFor(SPEECH.englishLang) === false);
+    const check = () => setVoiceMissing(getSynth().hasVoiceFor(LANGUAGES[languages.front].speech) === false);
     check();
     window.speechSynthesis?.addEventListener?.("voiceschanged", check);
     return () => {
@@ -130,11 +131,13 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
     if (!ready || busy.current || !card) return;
     busy.current = true;
     getSynth().cancel(); setSpeaking(false); setLast(null); setSaveError(null);
-    const target = stage === "english" ? card.englishText : card.turkishMeaning;
+    const target = stage === "english" ? card.englishText : card.turkishMeaning; // front side, then back side
+    const code = stage === "english" ? languages.front : languages.back;
+    const longForm = target.trim().split(/\s+/).length >= SPEECH.longFormWords;
     try {
       const outcome = await runAttempt(stage, {
-        recognizer: getRecognizer(), dispatch,
-        assess: (alts) => (stage === "english" ? recognitionMatchAssessor.assess(target, alts) : lexicalTurkishEvaluator.evaluate(target, alts)),
+        recognizer: getRecognizer(), dispatch, lang: LANGUAGES[code].speech, longForm,
+        assess: (alts) => (stage === "english" ? recognitionMatchAssessor.assess(target, alts, code) : lexicalTurkishEvaluator.evaluate(target, alts, code)),
       });
       if (outcome.kind !== "scored") return;
       const s = stats.current;
@@ -146,7 +149,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
         scoreType: outcome.result.scoreType, passed: outcome.passed, provider: outcome.provider,
       }).catch(reportSaveError);
     } finally { busy.current = false; }
-  }, [ctx.status, card, stage, uid, init.sessionId, reportSaveError]);
+  }, [ctx.status, card, stage, uid, init.sessionId, languages.front, languages.back, reportSaveError]);
 
   const skip = useCallback(() => {
     if (busy.current) return;
@@ -157,9 +160,9 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
   const listen = useCallback(async () => {
     if (!card || speaking) return;
     setSpeaking(true);
-    await getSynth().speak(card.englishText, SPEECH.englishLang);
+    await getSynth().speak(card.englishText, LANGUAGES[languages.front].speech);
     setSpeaking(false);
-  }, [card, speaking]);
+  }, [card, speaking, languages.front]);
 
   return {
     ctx, card, stage, last, support, hintShown, showHint: () => setHintShown(true),

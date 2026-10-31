@@ -22,8 +22,8 @@ export const classSchema = z.object({
 });
 
 export const cardSchema = z.object({
-  englishText: z.string().trim().min(1, "Enter the English text.").max(LIMITS.textMax, `Keep it under ${LIMITS.textMax} characters.`),
-  turkishMeaning: z.string().trim().min(1, "Enter the Turkish meaning.").max(LIMITS.textMax, `Keep it under ${LIMITS.textMax} characters.`),
+  englishText: z.string().trim().min(1, "Enter the front side (word or question).").max(LIMITS.textMax, `Keep it under ${LIMITS.textMax} characters.`),
+  turkishMeaning: z.string().trim().min(1, "Enter the back side (meaning or answer).").max(LIMITS.textMax, `Keep it under ${LIMITS.textMax} characters.`),
 });
 
 export type ClassInput = z.infer<typeof classSchema>;

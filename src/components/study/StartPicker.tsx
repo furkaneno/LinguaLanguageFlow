@@ -2,12 +2,13 @@
 import { ListOrdered, MapPin, Play, Shuffle, type LucideIcon } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Button, LinkButton } from "@/components/ui/button";
+import { LANGUAGES, type ClassLanguages } from "@/lib/languages";
 import type { StudyOrder } from "@/lib/study/order";
 
 export type Choice = StudyOrder | "continue";
 
 interface Props {
-  classId: string; className: string; cardCount: number; busy: boolean;
+  classId: string; className: string; cardCount: number; busy: boolean; languages: ClassLanguages;
   /** Where "continue" will start; null means no saved place (it starts at #1). */
   place: { number: number } | null;
   onPick: (choice: Choice) => void;
@@ -67,12 +68,12 @@ function PlaceEditor({ cardCount, place, busy, onSetPlace, onResetPlace }:
   );
 }
 
-export function StartPicker({ classId, className, cardCount, busy, place, onPick, onSetPlace, onResetPlace }: Props) {
+export function StartPicker({ classId, className, cardCount, busy, languages, place, onPick, onSetPlace, onResetPlace }: Props) {
   return (
     <div className="mx-auto max-w-xl">
       <p className="truncate text-sm text-ink-muted">{className} · {cardCount} {cardCount === 1 ? "card" : "cards"}</p>
       <h1 className="mt-1 font-display text-4xl tracking-tight">How do you want to study?</h1>
-      <p className="mt-2 text-ink-muted">Every card works the same way: say the English, then the Turkish. This only sets the order.</p>
+      <p className="mt-2 text-ink-muted">{`Every card works the same way: read it aloud in ${LANGUAGES[languages.front].name}, then say the answer in ${LANGUAGES[languages.back].name}. This only sets the order.`}</p>
 
       <div className="mt-8" role="group" aria-label="Study order">
         <Option highlight icon={Play} disabled={busy} onClick={() => onPick("continue")}

@@ -23,7 +23,7 @@ function session(ids = ["c1", "c2"]) {
   const dispatch = (e: StudyEvent) => { events.push(e); ctx = studyReducer(ctx, e); };
   const attempt = (stage: Stage, rec: MockRecognizer) =>
     runAttempt(stage, {
-      recognizer: rec, dispatch,
+      recognizer: rec, dispatch, lang: stage === "english" ? "en-US" : "tr-TR",
       assess: (alts) => (stage === "english" ? recognitionMatchAssessor.assess(EN, alts) : lexicalTurkishEvaluator.evaluate(TR, alts)),
     });
   return { get ctx() { return ctx; }, attempt, events, dispatch };
@@ -107,5 +107,40 @@ describe("two-stage attempt flow with a mocked provider", () => {
     const out = await s.attempt("english", new MockRecognizer([{ ok: false, error: "aborted" }]));
     expect(out.kind).toBe("cancelled");
     expect(s.events.map((e) => e.type)).toEqual(["START_RECORDING"]);
+  });
+
+  it("long answers listen longer and through pauses; short ones don't", async () => {
+    const short = new MockRecognizer([heard(EN)]);
+    const long = new MockRecognizer([heard(EN)]);
+    const ctx = session();
+    await runAttempt("english", { recognizer: short, dispatch: ctx.dispatch, lang: "en-US", assess: (a) => recognitionMatchAssessor.assess(EN, a) });
+    const ctx2 = session();
+    await runAttempt("english", { recognizer: long, dispatch: ctx2.dispatch, lang: "en-US", longForm: true, assess: (a) => recognitionMatchAssessor.assess(EN, a) });
+    expect(short.calls[0]).toMatchObject({ longForm: false, timeoutMs: 12000 });
+    expect(long.calls[0]).toMatchObject({ longForm: true, timeoutMs: 90000, silenceMs: 3500 });
+  });
+
+  it("works for an English question with an English answer", async () => {
+    const answer = "Because I enjoy helping people and I stay calm under pressure.";
+    const rec = new MockRecognizer([heard(EN), heard("because i enjoy helping people and i stay calm under pressure")]);
+    const s = session();
+    const dispatch = s.dispatch;
+    const assessAnswer = (alts: string[]) => lexicalTurkishEvaluator.evaluate(answer, alts, "en");
+    await runAttempt("english", { recognizer: rec, dispatch, lang: "en-US", assess: (a) => recognitionMatchAssessor.assess(EN, a, "en") });
+    const out = await runAttempt("turkish", { recognizer: rec, dispatch, lang: "en-US", longForm: true, assess: assessAnswer });
+    expect(rec.calls[1]?.lang).toBe("en-US");
+    expect(out).toMatchObject({ kind: "scored", passed: true });
+    expect(s.ctx.status).toBe("card_completed");
+  });
+
+  it("works for Spanish cards, with and without accents", async () => {
+    const front = "¿Por qué quieres ser auxiliar de vuelo?";
+    const back = "Porque me encanta ayudar a la gente.";
+    const rec = new MockRecognizer([heard("por que quieres ser auxiliar de vuelo"), heard("porque me encanta ayudar a la gente")]);
+    const s = session();
+    await runAttempt("english", { recognizer: rec, dispatch: s.dispatch, lang: "es-ES", assess: (a) => recognitionMatchAssessor.assess(front, a, "es") });
+    const out = await runAttempt("turkish", { recognizer: rec, dispatch: s.dispatch, lang: "es-ES", assess: (a) => lexicalTurkishEvaluator.evaluate(back, a, "es") });
+    expect(rec.calls.map((c) => c.lang)).toEqual(["es-ES", "es-ES"]);
+    expect(out).toMatchObject({ kind: "scored", passed: true });
   });
 });

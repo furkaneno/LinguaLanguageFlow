@@ -1,14 +1,16 @@
 import { Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { pairShort, type ClassLanguages } from "@/lib/languages";
 import type { ClassDoc } from "@/types";
 
-export function ClassCard({ c, onEdit, onDelete }: { c: ClassDoc; onEdit: () => void; onDelete: () => void }) {
+export function ClassCard({ c, languages, onEdit, onDelete }: { c: ClassDoc; languages: ClassLanguages; onEdit: () => void; onDelete: () => void }) {
   return (
     <li className="flex flex-col rounded-xl2 border border-line bg-cream-surface p-5 shadow-sm">
       <Link href={`/classes/${c.id}`} className="group flex-1 rounded-lg">
         <h2 className="font-display text-xl group-hover:text-brand-light">{c.name}</h2>
         {c.description && <p className="mt-1 line-clamp-2 text-sm text-ink-muted">{c.description}</p>}
-        <p className="mt-4 text-sm">
+        <p className="mt-3"><span className="rounded-full bg-blush px-2.5 py-0.5 text-xs font-medium">{pairShort(languages)}</span></p>
+        <p className="mt-3 text-sm">
           <span className="font-medium">{c.cardCount}</span> {c.cardCount === 1 ? "card" : "cards"}
           <span className="text-ink-muted">
             {c.lastStudiedAt ? ` · Last studied ${c.lastStudiedAt.toLocaleDateString()}` : " · Not studied yet"}

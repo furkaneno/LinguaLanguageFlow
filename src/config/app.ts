@@ -13,9 +13,11 @@ export const LIMITS = {
 } as const;
 
 export const SPEECH = {
-  englishLang: "en-US",
-  turkishLang: "tr-TR",
   listenTimeoutMs: 12000,
+  /** Answers of this many words or more are treated as long: keep listening through pauses. */
+  longFormWords: 10,
+  longTimeoutMs: 90000,
+  longSilenceMs: 3500,
   advanceDelayMs: 1400,
   maxSessionCards: 2000,
 } as const;

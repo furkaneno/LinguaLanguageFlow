@@ -4,31 +4,34 @@ import Link from "next/link";
 import { useState } from "react";
 import { LinkButton, Button } from "@/components/ui/button";
 import { useStudySession, type SessionInit } from "@/hooks/useStudySession";
+import { LANGUAGES, type ClassLanguages } from "@/lib/languages";
 import type { CardDoc } from "@/types";
 import { MicButton } from "./MicButton";
 import { ScoreBlock } from "./ScoreBlock";
 
 interface Props {
   uid: string; classId: string; className: string; cards: Map<string, CardDoc>;
-  init: SessionInit; onRestart: () => void;
+  init: SessionInit; languages: ClassLanguages; onRestart: () => void;
 }
 
-const PROMPT: Record<string, string> = {
-  english_ready: "Say the English text aloud.",
+const prompts = (front: string, back: string): Record<string, string> => ({
+  english_ready: `Read the card aloud in ${front}.`,
   english_recording: "Listening… tap the button when you're done.",
   english_evaluating: "Checking what you said…",
   english_failed: "Not quite. Listen if you like, then try again.",
-  turkish_ready: "Now say the Turkish meaning aloud.",
+  turkish_ready: `Now say the answer in ${back}.`,
   turkish_recording: "Listening… tap the button when you're done.",
   turkish_evaluating: "Checking your answer…",
   turkish_failed: "Not quite. Try again, or take a hint.",
   card_completed: "Both steps done. Next card…",
-};
+});
 
 const fmt = (ms: number) => { const s = Math.round(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 
-export function StudyScreen({ uid, classId, className, cards, init, onRestart }: Props) {
-  const s = useStudySession(uid, classId, cards, init);
+export function StudyScreen({ uid, classId, className, cards, init, languages, onRestart }: Props) {
+  const s = useStudySession(uid, classId, cards, init, languages);
+  const frontName = LANGUAGES[languages.front].name, backName = LANGUAGES[languages.back].name;
+  const PROMPT = prompts(frontName, backName);
   const [confirmSkip, setConfirmSkip] = useState(false);
   const { ctx, card, stage, last } = s;
   const back = `/classes/${classId}`;
@@ -112,13 +115,13 @@ export function StudyScreen({ uid, classId, className, cards, init, onRestart }:
 
       <div className="mt-8 flex flex-col items-center gap-6 text-center">
         <p className="rounded-full bg-blush px-4 py-1.5 text-sm font-medium">
-          {stage === "english" ? "Step 1 of 2: say it in English" : "Step 2 of 2: say the Turkish meaning"}
+          {stage === "english" ? `Step 1 of 2: read it aloud in ${frontName}` : `Step 2 of 2: say the answer in ${backName}`}
         </p>
-        <p lang="en" className="font-display text-3xl leading-snug sm:text-5xl">{card?.englishText}</p>
+        <p lang={languages.front} className="font-display text-3xl leading-snug sm:text-5xl">{card?.englishText}</p>
 
         {stage === "english" && !done && (
           s.voiceMissing
-            ? <p className="text-sm text-ink-muted">No English voice was found on this device, so playback isn't available. You can still record.</p>
+            ? <p className="text-sm text-ink-muted">{`No ${frontName} voice was found on this device, so playback isn't available. You can still record.`}</p>
             : <Button variant="secondary" onClick={() => void s.listen()} disabled={recording || evaluating || s.speaking}>
                 <Volume2 className="h-4 w-4" aria-hidden /> {s.speaking ? "Playing…" : "Listen"}
               </Button>
@@ -141,8 +144,8 @@ export function StudyScreen({ uid, classId, className, cards, init, onRestart }:
         )}
         {turkishFailed && s.hintShown && card && (
           <div className="rounded-xl2 bg-blush px-5 py-4 text-left">
-            <p className="text-sm text-ink-muted">Hint: the saved meaning. You still need to say it to continue.</p>
-            <p lang="tr" className="mt-1 text-lg">{card.turkishMeaning}</p>
+            <p className="text-sm text-ink-muted">Hint: the saved answer. You still need to say it to continue.</p>
+            <p lang={languages.back} className="mt-1 text-lg">{card.turkishMeaning}</p>
           </div>
         )}
         {!recording && !evaluating && !done && (

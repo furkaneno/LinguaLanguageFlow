@@ -1,5 +1,5 @@
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from "@firebase/rules-unit-testing";
-import { doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
 
@@ -68,5 +68,7 @@ describe("study sessions", () => {
     await assertFails(setDoc(doc(alice(), "users/alice/studySessions/s1/attempts/t2"), { ...a, score: null }));
     await assertFails(setDoc(doc(alice(), "users/alice/studySessions/s1/attempts/t3"), { ...a, score: 140 }));
     await assertFails(updateDoc(doc(alice(), "users/alice/studySessions/s1/attempts/t1"), { score: 100 }));
+    await assertFails(deleteDoc(doc(bob(), "users/alice/studySessions/s1/attempts/t1")));
+    await assertSucceeds(deleteDoc(doc(alice(), "users/alice/studySessions/s1/attempts/t1")));
   });
 });

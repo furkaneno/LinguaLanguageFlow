@@ -1,5 +1,6 @@
 import { ENGLISH_PASS_THRESHOLD, TURKISH_PASS_THRESHOLD, SPEECH } from "@/config/app";
 import { speechErrorMessage } from "@/lib/speech/messages";
+import { isIOS } from "@/lib/speech/platform";
 import type { SpeechErrorCode, SpeechRecognitionProvider } from "@/lib/speech/types";
 import { passes, type ScoreResult } from "@/lib/text/similarity";
 import type { StudyEvent } from "./machine";
@@ -17,21 +18,23 @@ interface Deps {
   /** BCP-47 tag to listen for (comes from the class languages). */
   lang: string;
   longForm?: boolean;
+  /** Live text while the user is speaking. */
+  onInterim?: (text: string) => void;
   assess: (alternatives: string[]) => ScoreResult;
   dispatch: (e: StudyEvent) => void;
 }
 
 /** One listen -> score cycle, driving the state machine. Never invents a score. */
-export async function runAttempt(stage: Stage, { recognizer, assess, dispatch, lang, longForm = false }: Deps): Promise<AttemptOutcome> {
+export async function runAttempt(stage: Stage, { recognizer, assess, dispatch, lang, longForm = false, onInterim }: Deps): Promise<AttemptOutcome> {
   dispatch({ type: "START_RECORDING" });
   const heard = await recognizer.listen({
     lang,
     timeoutMs: longForm ? SPEECH.longTimeoutMs : SPEECH.listenTimeoutMs,
-    longForm, silenceMs: SPEECH.longSilenceMs,
+    longForm, silenceMs: SPEECH.longSilenceMs, ...(onInterim ? { onInterim } : {}),
   });
   if (!heard.ok) {
     if (heard.error === "aborted") return { kind: "cancelled", stage };
-    dispatch({ type: "CANCEL_RECORDING", notice: speechErrorMessage(heard.error) });
+    dispatch({ type: "CANCEL_RECORDING", notice: speechErrorMessage(heard.error, isIOS()) });
     return { kind: "error", stage, error: heard.error };
   }
   dispatch({ type: "STOP_RECORDING" });

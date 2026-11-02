@@ -13,6 +13,8 @@ export interface ListenOptions {
   lang: string; timeoutMs: number;
   /** Long answers: keep listening through pauses, and stop after `silenceMs` of quiet or when the user taps stop. */
   longForm?: boolean; silenceMs?: number;
+  /** Called with the text heard so far while the user is still speaking. */
+  onInterim?: (text: string) => void;
 }
 
 export interface SpeechRecognitionProvider {

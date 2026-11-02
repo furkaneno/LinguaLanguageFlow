@@ -21,3 +21,6 @@ export const SPEECH = {
   advanceDelayMs: 1400,
   maxSessionCards: 2000,
 } as const;
+
+/** Session flag set right before an account is deleted, so the sign-in page can confirm it. */
+export const ACCOUNT_DELETED_FLAG = "lf-account-deleted";

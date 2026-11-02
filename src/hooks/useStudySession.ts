@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { ENGLISH_PASS_THRESHOLD, SPEECH, TURKISH_PASS_THRESHOLD } from "@/config/app";
 import { LANGUAGES, type ClassLanguages } from "@/lib/languages";
+import { isIOS } from "@/lib/speech/platform";
 import { clearPlace, recordAttempt, recordCardCompletion, savePlace, saveSessionProgress, touchClassStudied, type CardStats } from "@/lib/firebase/study";
 import { nextPlace, type StudyPlace } from "@/lib/study/order";
 import { BrowserSynthesisProvider } from "@/lib/speech/browserSynthesis";
@@ -35,6 +36,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
   const [saveError, setSaveError] = useState<string | null>(null);
   const [voiceMissing, setVoiceMissing] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [heard, setHeard] = useState("");
 
   const recognizer = useRef<SpeechRecognitionProvider | null>(null);
   const synth = useRef<SpeechSynthesisProvider | null>(null);
@@ -45,14 +47,14 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
   const persistedIndex = useRef(init.startIndex);
   const classTouched = useRef(false);
   const startedAt = useRef(Date.now());
-  const [support, setSupport] = useState<{ recognition: boolean; secure: boolean; synthesis: boolean } | null>(null);
+  const [support, setSupport] = useState<{ recognition: boolean; secure: boolean; synthesis: boolean; ios: boolean } | null>(null);
 
   const getRecognizer = () => (recognizer.current ??= new WebSpeechRecognitionProvider());
   const getSynth = () => (synth.current ??= new BrowserSynthesisProvider());
   const reportSaveError = useCallback(() => setSaveError("Your progress couldn't be saved. Check your connection; you can keep studying."), []);
 
   useEffect(() => {
-    setSupport({ recognition: getRecognizer().isSupported(), secure: window.isSecureContext, synthesis: getSynth().isSupported() });
+    setSupport({ recognition: getRecognizer().isSupported(), secure: window.isSecureContext, synthesis: getSynth().isSupported(), ios: isIOS() });
     const resume: StudySnapshot | undefined = init.startIndex > 0
       ? { cardIds: init.cardIds, index: init.startIndex, completedIds: [], stage: "english" } : undefined;
     dispatch({ type: "LOADED", cardIds: init.cardIds, ...(resume ? { resume } : {}) });
@@ -130,13 +132,13 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
     const ready = ["english_ready", "english_failed", "turkish_ready", "turkish_failed"].includes(ctx.status);
     if (!ready || busy.current || !card) return;
     busy.current = true;
-    getSynth().cancel(); setSpeaking(false); setLast(null); setSaveError(null);
+    getSynth().cancel(); setSpeaking(false); setLast(null); setSaveError(null); setHeard("");
     const target = stage === "english" ? card.englishText : card.turkishMeaning; // front side, then back side
     const code = stage === "english" ? languages.front : languages.back;
     const longForm = target.trim().split(/\s+/).length >= SPEECH.longFormWords;
     try {
       const outcome = await runAttempt(stage, {
-        recognizer: getRecognizer(), dispatch, lang: LANGUAGES[code].speech, longForm,
+        recognizer: getRecognizer(), dispatch, lang: LANGUAGES[code].speech, longForm, onInterim: setHeard,
         assess: (alts) => (stage === "english" ? recognitionMatchAssessor.assess(target, alts, code) : lexicalTurkishEvaluator.evaluate(target, alts, code)),
       });
       if (outcome.kind !== "scored") return;
@@ -148,7 +150,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
         cardId: card.id, stage, recognizedText: outcome.result.recognizedText, score: outcome.result.score ?? 0,
         scoreType: outcome.result.scoreType, passed: outcome.passed, provider: outcome.provider,
       }).catch(reportSaveError);
-    } finally { busy.current = false; }
+    } finally { busy.current = false; setHeard(""); }
   }, [ctx.status, card, stage, uid, init.sessionId, languages.front, languages.back, reportSaveError]);
 
   const skip = useCallback(() => {
@@ -166,7 +168,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
 
   return {
     ctx, card, stage, last, support, hintShown, showHint: () => setHintShown(true),
-    saveError, voiceMissing, speaking, mic, listen, skip,
+    saveError, voiceMissing, speaking, heard, mic, listen, skip,
     thresholds: { english: ENGLISH_PASS_THRESHOLD, turkish: TURKISH_PASS_THRESHOLD },
     elapsedMs: () => Date.now() - startedAt.current,
   };

@@ -14,6 +14,15 @@ export const registerSchema = z
   })
   .refine((v) => v.password === v.confirm, { path: ["confirm"], message: "Passwords don't match." });
 
+export const changePasswordSchema = z
+  .object({
+    current: z.string().min(1, "Enter your current password."),
+    next: z.string().min(8, "Use at least 8 characters."),
+    confirm: z.string(),
+  })
+  .refine((v) => v.next === v.confirm, { path: ["confirm"], message: "Passwords don't match." })
+  .refine((v) => v.next !== v.current, { path: ["next"], message: "Choose a password different from your current one." });
+
 export const resetSchema = z.object({ email: z.string().trim().email("Enter a valid email address.") });
 
 export const classSchema = z.object({

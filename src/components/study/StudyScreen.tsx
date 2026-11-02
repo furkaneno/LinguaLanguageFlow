@@ -1,8 +1,9 @@
 "use client";
-import { CheckCircle2, Lightbulb, SkipForward, Volume2 } from "lucide-react";
+import { CheckCircle2, Lightbulb, SkipForward, Volume2, type LucideIcon } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LinkButton, Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
 import { useStudySession, type SessionInit } from "@/hooks/useStudySession";
 import { LANGUAGES, type ClassLanguages } from "@/lib/languages";
 import type { CardDoc } from "@/types";
@@ -32,7 +33,14 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
   const s = useStudySession(uid, classId, cards, init, languages);
   const frontName = LANGUAGES[languages.front].name, backName = LANGUAGES[languages.back].name;
   const PROMPT = prompts(frontName, backName);
-  const [confirmSkip, setConfirmSkip] = useState(false);
+  const [skipArmed, setSkipArmed] = useState(false);   // first tap arms, second tap skips
+  const [hintOpen, setHintOpen] = useState(false);
+  useEffect(() => {
+    if (!skipArmed) return;
+    const t = setTimeout(() => setSkipArmed(false), 4000);
+    return () => clearTimeout(t);
+  }, [skipArmed]);
+  useEffect(() => { setSkipArmed(false); setHintOpen(false); }, [s.ctx.index]);
   const { ctx, card, stage, last } = s;
   const back = `/classes/${classId}`;
 
@@ -96,6 +104,14 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
   const pct = Math.round((Math.min(ctx.index + (done ? 1 : 0), ctx.cardIds.length) / ctx.cardIds.length) * 100);
   const threshold = stage === "english" ? s.thresholds.english : s.thresholds.turkish;
 
+  // Both helper buttons sit beside the microphone, so nothing needs scrolling: step 1 has Listen, step 2 has Hint.
+  const left = stage === "english"
+    ? <SideButton icon={Volume2} label={s.speaking ? "Playing" : "Listen"} onClick={() => void s.listen()}
+        disabled={recording || evaluating || s.speaking || s.voiceMissing || done} />
+    : <SideButton icon={Lightbulb} label="Hint" onClick={() => { s.showHint(); setHintOpen(true); }} disabled={!turkishFailed} />;
+  const right = <SideButton icon={SkipForward} label={skipArmed ? "Sure?" : "Skip"} danger={skipArmed} disabled={recording || evaluating || done}
+    onClick={() => { if (skipArmed) { setSkipArmed(false); s.skip(); } else setSkipArmed(true); }} />;
+
   return (
     <div className="mx-auto max-w-2xl">
       <div className="flex items-center justify-between gap-3 text-sm">
@@ -113,56 +129,59 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
         <p className="mt-3 text-sm text-ink-muted">Continuing from where you left off.</p>
       )}
 
-      <div className="mt-8 flex flex-col items-center gap-6 text-center">
+      <div className="mt-6 flex flex-col items-center gap-5 text-center sm:mt-8">
         <p className="rounded-full bg-blush px-4 py-1.5 text-sm font-medium">
           {stage === "english" ? `Step 1 of 2: read it aloud in ${frontName}` : `Step 2 of 2: say the answer in ${backName}`}
         </p>
         <p lang={languages.front} className="font-display text-3xl leading-snug sm:text-5xl">{card?.englishText}</p>
 
-        {stage === "english" && !done && (
-          s.voiceMissing
-            ? <p className="text-sm text-ink-muted">{`No ${frontName} voice was found on this device, so playback isn't available. You can still record.`}</p>
-            : <Button variant="secondary" onClick={() => void s.listen()} disabled={recording || evaluating || s.speaking}>
-                <Volume2 className="h-4 w-4" aria-hidden /> {s.speaking ? "Playing…" : "Listen"}
-              </Button>
-        )}
-
         <p role="status" aria-live="polite" className="text-lg text-ink-muted">{PROMPT[ctx.status]}</p>
         {ctx.notice && <p role="alert" className="rounded-xl bg-danger px-4 py-3 text-sm"><strong>Problem: </strong>{ctx.notice}</p>}
 
-        <MicButton recording={recording} evaluating={evaluating} disabled={done} onClick={() => void s.mic()} />
+        <div className="grid w-full max-w-sm grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-5">
+          <div className="flex justify-end">{left}</div>
+          <MicButton recording={recording} evaluating={evaluating} disabled={done} onClick={() => { setSkipArmed(false); void s.mic(); }} />
+          <div className="flex justify-start">{right}</div>
+        </div>
+
+        {recording && (
+          <p aria-live="off" className="min-h-6 max-w-md break-words text-sm text-ink-muted">
+            {s.heard ? `Hearing: “${s.heard}”` : "Listening…"}
+          </p>
+        )}
+        {skipArmed && <p role="status" className="text-sm text-err">Tap Skip again to skip this card. It won&apos;t count as completed.</p>}
+        {stage === "english" && s.voiceMissing && (
+          <p className="text-sm text-ink-muted">{`No ${frontName} voice was found on this device, so Listen isn't available. You can still record.`}</p>
+        )}
 
         {ctx.status === "english_ready" && ctx.attempts === 0 && init.baseAttempts === 0 && (
-          <p className="max-w-sm text-sm text-ink-muted">Your browser will ask to use the microphone. Lingua Flow doesn't save audio; your browser's speech service processes it to recognize what you say.</p>
+          <p className="max-w-sm text-sm text-ink-muted">
+            Your browser will ask to use the microphone. Lingua Flow doesn&apos;t save audio; your browser&apos;s speech service processes it to recognize what you say.
+            {s.support.ios && " On iPhone, Dictation must be on: Settings → General → Keyboard → Enable Dictation."}
+          </p>
         )}
 
         {last && !recording && !evaluating && <ScoreBlock last={last} threshold={last.stage === "english" ? s.thresholds.english : s.thresholds.turkish} />}
         {!last && !recording && !evaluating && !done && <p className="sr-only">Pass mark {threshold}%</p>}
-
-        {turkishFailed && !s.hintShown && (
-          <Button variant="ghost" onClick={s.showHint}><Lightbulb className="h-4 w-4" aria-hidden /> Show a hint</Button>
-        )}
-        {turkishFailed && s.hintShown && card && (
-          <div className="rounded-xl2 bg-blush px-5 py-4 text-left">
-            <p className="text-sm text-ink-muted">Hint: the saved answer. You still need to say it to continue.</p>
-            <p lang={languages.back} className="mt-1 text-lg">{card.turkishMeaning}</p>
-          </div>
-        )}
-        {!recording && !evaluating && !done && (
-          confirmSkip ? (
-            <div className="w-full rounded-xl2 border border-line bg-cream-surface px-5 py-4 text-left">
-              <p className="text-sm">Skip this card? It won't count as completed and will come up again in a later session.</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Button variant="secondary" onClick={() => setConfirmSkip(false)}>Keep practicing</Button>
-                <Button onClick={() => { setConfirmSkip(false); s.skip(); }}>Skip card</Button>
-              </div>
-            </div>
-          ) : (
-            <Button variant="ghost" onClick={() => setConfirmSkip(true)}><SkipForward className="h-4 w-4" aria-hidden /> Skip this card</Button>
-          )
-        )}
         {s.saveError && <p role="alert" className="text-sm text-err"><strong>Not saved: </strong>{s.saveError}</p>}
       </div>
+
+      <Dialog open={hintOpen && turkishFailed && !!card} onClose={() => setHintOpen(false)} title="Hint">
+        <p className="text-sm text-ink-muted">The saved answer. You still need to say it to continue.</p>
+        <p lang={languages.back} className="mt-3 whitespace-pre-line break-words text-xl">{card?.turkishMeaning}</p>
+        <div className="mt-6 flex justify-end"><Button onClick={() => setHintOpen(false)}>Got it</Button></div>
+      </Dialog>
     </div>
+  );
+}
+
+function SideButton({ icon: Icon, label, onClick, disabled, danger = false }:
+  { icon: LucideIcon; label: string; onClick: () => void; disabled?: boolean; danger?: boolean }) {
+  return (
+    <button type="button" onClick={onClick} disabled={disabled}
+      className={`flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-2xl border text-xs font-medium transition-colors hover:bg-blush/50 disabled:cursor-not-allowed disabled:opacity-40 sm:h-[4.5rem] sm:w-[4.5rem] ${danger ? "border-[#B42318] bg-danger text-on-danger" : "border-line bg-cream-surface"}`}>
+      <Icon className="h-5 w-5" aria-hidden />
+      {label}
+    </button>
   );
 }

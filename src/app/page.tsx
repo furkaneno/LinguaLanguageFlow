@@ -1,4 +1,5 @@
 import { Brand } from "@/components/layout/Brand";
+import { DevCredit } from "@/components/layout/DevCredit";
 import { LinkButton } from "@/components/ui/button";
 import { APP_TAGLINE } from "@/config/app";
 
@@ -16,6 +17,7 @@ export default function Home() {
         </p>
         <div className="mt-8"><LinkButton href="/register">Create your account</LinkButton></div>
       </section>
+      <DevCredit />
     </main>
   );
 }

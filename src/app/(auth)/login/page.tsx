@@ -1,12 +1,19 @@
 "use client";
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
+import { ACCOUNT_DELETED_FLAG } from "@/config/app";
 import { Field, FormError } from "@/components/ui/field";
 import { authErrorMessage, loginUser } from "@/lib/firebase/auth";
 import { fieldErrors, loginSchema } from "@/lib/validation/schemas";
 
 export default function LoginPage() {
+  const [deleted, setDeleted] = useState(false);
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(ACCOUNT_DELETED_FLAG)) { sessionStorage.removeItem(ACCOUNT_DELETED_FLAG); setDeleted(true); }
+    } catch { /* storage unavailable: just skip the notice */ }
+  }, []);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -27,6 +34,7 @@ export default function LoginPage() {
   return (
     <form onSubmit={submit} className="space-y-4" noValidate>
       <h1 className="font-display text-3xl">Welcome back</h1>
+      {deleted && <p role="status" className="rounded-xl bg-success px-4 py-3 text-sm">Your account and all its data were deleted.</p>}
       <FormError message={formError} />
       <Field label="Email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} error={errors.email} />
       <Field label="Password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} error={errors.password} />

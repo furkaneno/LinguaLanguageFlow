@@ -32,7 +32,6 @@ const emptyStats = (): CardStats => ({ englishAttempts: 0, turkishAttempts: 0, l
 export function useStudySession(uid: string, classId: string, cards: Map<string, CardDoc>, init: SessionInit, languages: ClassLanguages) {
   const [ctx, dispatch] = useReducer(studyReducer, initialContext);
   const [last, setLast] = useState<LastAttempt | null>(null);
-  const [hintShown, setHintShown] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [voiceMissing, setVoiceMissing] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -73,7 +72,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
   const card = cardId ? cards.get(cardId) : undefined;
 
   // Reset per-card state when the card changes.
-  useEffect(() => { stats.current = emptyStats(); setHintShown(false); setLast(null); }, [ctx.index]);
+  useEffect(() => { stats.current = emptyStats(); setLast(null); }, [ctx.index]);
 
   // Persist only at meaningful transitions (English passed, card completed, card skipped), never per UI event.
   // The saved place ("continue where I left off") is only updated by the main run (init.remember).
@@ -167,7 +166,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
   }, [card, speaking, languages.front]);
 
   return {
-    ctx, card, stage, last, support, hintShown, showHint: () => setHintShown(true),
+    ctx, card, stage, last, support,
     saveError, voiceMissing, speaking, heard, mic, listen, skip,
     thresholds: { english: ENGLISH_PASS_THRESHOLD, turkish: TURKISH_PASS_THRESHOLD },
     elapsedMs: () => Date.now() - startedAt.current,

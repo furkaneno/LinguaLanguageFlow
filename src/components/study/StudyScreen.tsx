@@ -3,7 +3,6 @@ import { CheckCircle2, Lightbulb, SkipForward, Volume2, type LucideIcon } from "
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LinkButton, Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
 import { useStudySession, type SessionInit } from "@/hooks/useStudySession";
 import { LANGUAGES, type ClassLanguages } from "@/lib/languages";
 import type { CardDoc } from "@/types";
@@ -34,13 +33,13 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
   const frontName = LANGUAGES[languages.front].name, backName = LANGUAGES[languages.back].name;
   const PROMPT = prompts(frontName, backName);
   const [skipArmed, setSkipArmed] = useState(false);   // first tap arms, second tap skips
-  const [hintOpen, setHintOpen] = useState(false);
+  const [hintVisible, setHintVisible] = useState(false); // stays on screen while you answer, until the next card
   useEffect(() => {
     if (!skipArmed) return;
     const t = setTimeout(() => setSkipArmed(false), 4000);
     return () => clearTimeout(t);
   }, [skipArmed]);
-  useEffect(() => { setSkipArmed(false); setHintOpen(false); }, [s.ctx.index]);
+  useEffect(() => { setSkipArmed(false); setHintVisible(false); }, [s.ctx.index]);
   const { ctx, card, stage, last } = s;
   const back = `/classes/${classId}`;
 
@@ -108,7 +107,8 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
   const left = stage === "english"
     ? <SideButton icon={Volume2} label={s.speaking ? "Playing" : "Listen"} onClick={() => void s.listen()}
         disabled={recording || evaluating || s.speaking || s.voiceMissing || done} />
-    : <SideButton icon={Lightbulb} label="Hint" onClick={() => { s.showHint(); setHintOpen(true); }} disabled={!turkishFailed} />;
+    : <SideButton icon={Lightbulb} label={hintVisible ? "Hide" : "Hint"} onClick={() => setHintVisible((v) => !v)}
+        disabled={recording || evaluating || done || (!turkishFailed && !hintVisible)} />;
   const right = <SideButton icon={SkipForward} label={skipArmed ? "Sure?" : "Skip"} danger={skipArmed} disabled={recording || evaluating || done}
     onClick={() => { if (skipArmed) { setSkipArmed(false); s.skip(); } else setSkipArmed(true); }} />;
 
@@ -134,6 +134,13 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
           {stage === "english" ? `Step 1 of 2: read it aloud in ${frontName}` : `Step 2 of 2: say the answer in ${backName}`}
         </p>
         <p lang={languages.front} className="font-display text-3xl leading-snug sm:text-5xl">{card?.englishText}</p>
+
+        {stage === "turkish" && hintVisible && !done && card && (
+          <div className="w-full max-w-xl rounded-xl2 border-2 border-brand bg-cream-surface px-5 py-3 text-left">
+            <p className="text-xs font-medium text-brand-light">Hint · the saved answer. You still need to say it.</p>
+            <p lang={languages.back} className="mt-1 max-h-40 overflow-y-auto whitespace-pre-line break-words text-lg leading-snug">{card.turkishMeaning}</p>
+          </div>
+        )}
 
         <p role="status" aria-live="polite" className="text-lg text-ink-muted">{PROMPT[ctx.status]}</p>
         {ctx.notice && <p role="alert" className="rounded-xl bg-danger px-4 py-3 text-sm"><strong>Problem: </strong>{ctx.notice}</p>}
@@ -166,11 +173,6 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
         {s.saveError && <p role="alert" className="text-sm text-err"><strong>Not saved: </strong>{s.saveError}</p>}
       </div>
 
-      <Dialog open={hintOpen && turkishFailed && !!card} onClose={() => setHintOpen(false)} title="Hint">
-        <p className="text-sm text-ink-muted">The saved answer. You still need to say it to continue.</p>
-        <p lang={languages.back} className="mt-3 whitespace-pre-line break-words text-xl">{card?.turkishMeaning}</p>
-        <div className="mt-6 flex justify-end"><Button onClick={() => setHintOpen(false)}>Got it</Button></div>
-      </Dialog>
     </div>
   );
 }
@@ -179,7 +181,7 @@ function SideButton({ icon: Icon, label, onClick, disabled, danger = false }:
   { icon: LucideIcon; label: string; onClick: () => void; disabled?: boolean; danger?: boolean }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled}
-      className={`flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-2xl border text-xs font-medium transition-colors hover:bg-blush/50 disabled:cursor-not-allowed disabled:opacity-40 sm:h-[4.5rem] sm:w-[4.5rem] ${danger ? "border-[#B42318] bg-danger text-on-danger" : "border-line bg-cream-surface"}`}>
+      className={`flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-2xl border-2 text-xs font-medium transition-colors hover:bg-blush/50 disabled:cursor-not-allowed disabled:opacity-40 sm:h-[4.5rem] sm:w-[4.5rem] ${danger ? "border-[#B42318] bg-danger text-on-danger" : "border-brand bg-cream-surface"}`}>
       <Icon className="h-5 w-5" aria-hidden />
       {label}
     </button>

@@ -3,7 +3,7 @@ import type { ScoreResult } from "@/lib/text/similarity";
 
 export type SpeechErrorCode =
   | "unsupported" | "insecure_context" | "permission_denied" | "no_microphone" | "no_speech"
-  | "network" | "language_unsupported" | "aborted" | "busy" | "unknown";
+  | "network" | "language_unsupported" | "aborted" | "busy" | "service_error" | "rate_limited" | "unknown";
 
 export type RecognitionResult =
   | { ok: true; /** Recognizer hypotheses for the same audio, best first. */ alternatives: string[]; confidence: number | null; provider: string }
@@ -15,6 +15,10 @@ export interface ListenOptions {
   longForm?: boolean; silenceMs?: number;
   /** Called with the text heard so far while the user is still speaking. */
   onInterim?: (text: string) => void;
+  /** Cloud engine only: microphone level 0..1 while recording, so the user can see sound is being captured. */
+  onLevel?: (level: number) => void;
+  /** Cloud engine only: "processing" while the recording is being transcribed. */
+  onPhase?: (phase: "listening" | "processing") => void;
 }
 
 export interface SpeechRecognitionProvider {

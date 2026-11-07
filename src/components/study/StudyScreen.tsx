@@ -147,14 +147,24 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
 
         <div className="grid w-full max-w-sm grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-5">
           <div className="flex justify-end">{left}</div>
-          <MicButton recording={recording} evaluating={evaluating} disabled={done} onClick={() => { setSkipArmed(false); void s.mic(); }} />
+          <MicButton recording={recording} evaluating={evaluating || (recording && s.phase === "processing")} disabled={done} onClick={() => { setSkipArmed(false); void s.mic(); }} />
           <div className="flex justify-start">{right}</div>
         </div>
 
-        {recording && (
+        {recording && s.support.engine === "browser" && (
           <p aria-live="off" className="min-h-6 max-w-md break-words text-sm text-ink-muted">
             {s.heard ? `Hearing: “${s.heard}”` : "Listening…"}
           </p>
+        )}
+        {recording && s.support.engine === "cloud" && (
+          <div className="w-full max-w-xs" aria-live="off">
+            <div className="h-2 overflow-hidden rounded-full bg-blush">
+              <div className="h-full rounded-full bg-brand transition-[width] duration-100" style={{ width: `${Math.round(s.level * 100)}%` }} />
+            </div>
+            <p className="mt-2 text-sm text-ink-muted">
+              {s.phase === "processing" ? "Transcribing…" : s.level > 0.05 ? "Hearing you…" : "Listening… speak now"}
+            </p>
+          </div>
         )}
         {skipArmed && <p role="status" className="text-sm text-err">Tap Skip again to skip this card. It won&apos;t count as completed.</p>}
         {stage === "english" && s.voiceMissing && (
@@ -163,8 +173,12 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
 
         {ctx.status === "english_ready" && ctx.attempts === 0 && init.baseAttempts === 0 && (
           <p className="max-w-sm text-sm text-ink-muted">
-            Your browser will ask to use the microphone. Lingua Flow doesn&apos;t save audio; your browser&apos;s speech service processes it to recognize what you say.
-            {s.support.ios && " On iPhone, Dictation must be on: Settings → General → Keyboard → Enable Dictation."}
+            {s.support.engine === "cloud"
+              ? "Your browser will ask to use the microphone. On iPhone each recording is sent to a transcription service (OpenAI) to turn it into text. Lingua Flow doesn't keep it."
+              : <>
+                  Your browser will ask to use the microphone. Lingua Flow doesn&apos;t save audio; your browser&apos;s speech service processes it to recognize what you say.
+                  {s.support.ios && " On iPhone, Dictation must be on: Settings → General → Keyboard → Enable Dictation."}
+                </>}
           </p>
         )}
 

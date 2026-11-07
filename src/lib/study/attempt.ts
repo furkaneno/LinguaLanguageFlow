@@ -20,17 +20,21 @@ interface Deps {
   longForm?: boolean;
   /** Live text while the user is speaking. */
   onInterim?: (text: string) => void;
+  /** Cloud engine: microphone level and processing phase. */
+  onLevel?: (level: number) => void;
+  onPhase?: (phase: "listening" | "processing") => void;
   assess: (alternatives: string[]) => ScoreResult;
   dispatch: (e: StudyEvent) => void;
 }
 
 /** One listen -> score cycle, driving the state machine. Never invents a score. */
-export async function runAttempt(stage: Stage, { recognizer, assess, dispatch, lang, longForm = false, onInterim }: Deps): Promise<AttemptOutcome> {
+export async function runAttempt(stage: Stage, { recognizer, assess, dispatch, lang, longForm = false, onInterim, onLevel, onPhase }: Deps): Promise<AttemptOutcome> {
   dispatch({ type: "START_RECORDING" });
   const heard = await recognizer.listen({
     lang,
     timeoutMs: longForm ? SPEECH.longTimeoutMs : SPEECH.listenTimeoutMs,
     longForm, silenceMs: SPEECH.longSilenceMs, ...(onInterim ? { onInterim } : {}),
+    ...(onLevel ? { onLevel } : {}), ...(onPhase ? { onPhase } : {}),
   });
   if (!heard.ok) {
     if (heard.error === "aborted") return { kind: "cancelled", stage };

@@ -13,6 +13,8 @@ export function speechErrorMessage(code: SpeechErrorCode, ios = false): string {
     case "insecure_context": return "Microphone access needs a secure connection (HTTPS or localhost).";
     case "unsupported": return `This browser doesn't support speech recognition.${ios ? " On iPhone, open the site in Safari." : ""}`;
     case "busy": return "Already listening.";
+    case "service_error": return "The speech service had a problem. Please try again in a moment.";
+    case "rate_limited": return "Too many recordings in a short time. Wait a few seconds and try again.";
     default: return "Something went wrong with speech recognition. Please try again.";
   }
 }

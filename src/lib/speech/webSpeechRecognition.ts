@@ -31,6 +31,10 @@ function mapError(code: string): SpeechErrorCode {
 
 /** Short cards: stop this long after the last words, in case the browser never ends the session itself. */
 export const SHORT_QUIET_MS = 2500;
+/** If the browser never says it has ended after stop() (it happens on iPhone), give up after this long and use what we have. */
+export const STOP_GRACE_MS = 1500;
+/** If the engine produces nothing at all for this long, it is not listening; stop instead of waiting for the full limit. */
+export const NO_RESPONSE_MS = 7000;
 /** iPhone chains short sessions for long answers; this caps how many. */
 export const MAX_CHAINED_SESSIONS = 12;
 
@@ -80,6 +84,8 @@ export class WebSpeechRecognitionProvider implements SpeechRecognitionProvider {
       let lastError: SpeechErrorCode | null = null;
       let sessions = 0;
       let quiet: ReturnType<typeof setTimeout> | undefined;
+      let force: ReturnType<typeof setTimeout> | undefined;
+      let noResponse: ReturnType<typeof setTimeout> | undefined;
 
       const compose = (): Extract<RecognitionResult, { ok: true }> | null => {
         if (!committed && !latest) return null;
@@ -90,11 +96,16 @@ export class WebSpeechRecognitionProvider implements SpeechRecognitionProvider {
       const finish = (r: RecognitionResult) => {
         if (settled) return;
         settled = true;
-        clearTimeout(overall); clearTimeout(quiet);
+        clearTimeout(overall); clearTimeout(quiet); clearTimeout(force); clearTimeout(noResponse);
         this.active = null; this.requestStop = null; this.requestAbort = null;
         resolve(r);
       };
-      const stop = () => { stopRequested = true; try { current?.stop(); } catch { /* already ended */ } };
+      const stop = () => {
+        stopRequested = true;
+        clearTimeout(force);
+        force = setTimeout(() => finish(compose() ?? { ok: false, error: lastError ?? "no_speech" }), STOP_GRACE_MS); // armed before stop() on purpose
+        try { current?.stop(); } catch { /* already ended */ }
+      };
       const overall = setTimeout(stop, timeoutMs);
 
       const startSession = (restart: boolean) => {
@@ -137,6 +148,7 @@ export class WebSpeechRecognitionProvider implements SpeechRecognitionProvider {
         setTimeout(() => finish({ ok: false, error: "aborted" }), 300); // safety net if the browser never fires onend
       };
       startSession(false); // runs synchronously inside the tap, which iOS requires
+      noResponse = setTimeout(() => { if (!latest && !committed) stop(); }, longForm ? NO_RESPONSE_MS * 2 : NO_RESPONSE_MS);
     });
   }
 

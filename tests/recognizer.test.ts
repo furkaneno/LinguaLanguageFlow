@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { speechErrorMessage } from "@/lib/speech/messages";
 import { isIOS } from "@/lib/speech/platform";
-import { MAX_CHAINED_SESSIONS, SHORT_QUIET_MS, WebSpeechRecognitionProvider } from "@/lib/speech/webSpeechRecognition";
+import { MAX_CHAINED_SESSIONS, NO_RESPONSE_MS, SHORT_QUIET_MS, STOP_GRACE_MS, WebSpeechRecognitionProvider } from "@/lib/speech/webSpeechRecognition";
 
 const DESKTOP = { userAgent: "Mozilla/5.0 (Windows NT 10.0) Chrome/120", platform: "Win32", maxTouchPoints: 0 };
 const IPHONE = { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Safari/604.1", platform: "iPhone", maxTouchPoints: 5 };
@@ -99,6 +99,44 @@ describe("short cards", () => {
     last().say(["ignored"]);
     p.abort();
     await expect(done).resolves.toEqual({ ok: false, error: "aborted" });
+  });
+});
+
+describe("a browser that stops answering (the iPhone freeze)", () => {
+  /** Like Safari's broken state: start() works, then nothing is ever reported, and stop() never leads to onend. */
+  class ZombieSR extends FakeSR { stop() { this.stopped = true; } }
+  beforeEach(() => { FakeSR.instances = []; vi.stubGlobal("window", { SpeechRecognition: ZombieSR, isSecureContext: true }); });
+
+  it("gives up early when the engine produces nothing, instead of waiting for the full limit", async () => {
+    const done = new WebSpeechRecognitionProvider().listen(opts);
+    await vi.advanceTimersByTimeAsync(NO_RESPONSE_MS + STOP_GRACE_MS + 10);
+    await expect(done).resolves.toEqual({ ok: false, error: "no_speech" });
+  });
+  it("still returns what it heard when onend never fires after stop()", async () => {
+    const p = new WebSpeechRecognitionProvider();
+    const done = p.listen(opts);
+    last().say(["half a sentence"]);
+    p.stop();
+    await vi.advanceTimersByTimeAsync(STOP_GRACE_MS + 10);
+    await expect(done).resolves.toMatchObject({ ok: true, alternatives: ["half a sentence"] });
+  });
+  it("tapping stop with nothing heard ends in a clear error, never a hang", async () => {
+    const p = new WebSpeechRecognitionProvider();
+    const done = p.listen(opts);
+    p.stop();
+    await vi.advanceTimersByTimeAsync(STOP_GRACE_MS + 10);
+    await expect(done).resolves.toEqual({ ok: false, error: "no_speech" });
+  });
+  it("can be used again afterwards", async () => {
+    const p = new WebSpeechRecognitionProvider();
+    const first = p.listen(opts);
+    await vi.advanceTimersByTimeAsync(NO_RESPONSE_MS + STOP_GRACE_MS + 10);
+    await first;
+    const second = p.listen(opts);
+    expect(FakeSR.instances).toHaveLength(2);
+    last().say(["works"]); p.stop();
+    await vi.advanceTimersByTimeAsync(STOP_GRACE_MS + 10);
+    await expect(second).resolves.toMatchObject({ alternatives: ["works"] });
   });
 });
 

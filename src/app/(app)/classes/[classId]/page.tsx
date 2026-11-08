@@ -140,9 +140,9 @@ export default function ClassPage() {
         </div>
       ) : (
         <>
-          <ul className="mt-4 divide-y divide-line overflow-hidden rounded-xl2 border border-line bg-cream-surface">
+          <ul className="mt-4 space-y-3">
             {filtered.slice(0, visible).map((c) => (
-              <li key={c.id} className="flex items-start gap-3 p-4 sm:p-5">
+              <li key={c.id} className="flex items-start gap-3 rounded-xl2 border-2 border-brand bg-cream-surface p-4 sm:p-5">
                 <span className="mt-1 w-11 shrink-0 text-sm tabular-nums text-ink-muted" aria-label={`Card number ${c.number}`}>#{c.number}</span>
                 <div className="min-w-0 flex-1">
                   <p lang={languages.front} className="break-words text-lg">{c.englishText}</p>

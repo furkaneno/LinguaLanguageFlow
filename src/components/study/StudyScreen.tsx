@@ -1,6 +1,5 @@
 "use client";
-import { CheckCircle2, Lightbulb, SkipForward, Volume2, type LucideIcon } from "lucide-react";
-import Link from "next/link";
+import { CheckCircle2, Lightbulb, LogOut, SkipForward, Volume2, type LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { LinkButton, Button } from "@/components/ui/button";
 import { useStudySession, type SessionInit } from "@/hooks/useStudySession";
@@ -116,7 +115,7 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
     <div className="mx-auto max-w-2xl">
       <div className="flex items-center justify-between gap-3 text-sm">
         <p className="min-w-0 truncate font-medium">{className}</p>
-        <Link href={back} className="shrink-0 text-ink-muted underline">Exit session</Link>
+        <LinkButton href={back} className="shrink-0"><LogOut className="h-4 w-4" aria-hidden /> Exit session</LinkButton>
       </div>
       <div className="mt-3 flex items-center justify-between text-sm text-ink-muted">
         <span>Card {ctx.index + 1} of {ctx.cardIds.length}{card ? ` · #${card.number}` : ""}</span>
@@ -133,7 +132,9 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
         <p className="rounded-full bg-blush px-4 py-1.5 text-sm font-medium">
           {stage === "english" ? `Step 1 of 2: read it aloud in ${frontName}` : `Step 2 of 2: say the answer in ${backName}`}
         </p>
-        <p lang={languages.front} className="font-display text-3xl leading-snug sm:text-5xl">{card?.englishText}</p>
+        <div className="w-full rounded-xl2 border-2 border-brand bg-cream-surface px-6 py-5">
+          <p lang={languages.front} className="font-display text-3xl leading-snug sm:text-5xl">{card?.englishText}</p>
+        </div>
 
         {stage === "turkish" && hintVisible && !done && card && (
           <div className="w-full max-w-xl rounded-xl2 border-2 border-brand bg-cream-surface px-5 py-3 text-left">

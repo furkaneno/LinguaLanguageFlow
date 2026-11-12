@@ -39,6 +39,7 @@ export default function DashboardPage() {
     try {
       await deleteClass(uid, toDelete.id, (n) => setDeleting(`Deleted ${n} of ${toDelete.cardCount} cards`));
       toast("Class deleted");
+      setDeleting(null);
       setToDelete(null);
       await load();
     } catch (e) { toast(firestoreErrorMessage(e), "error"); }

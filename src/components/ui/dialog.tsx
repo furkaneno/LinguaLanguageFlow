@@ -3,6 +3,9 @@ import { X } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
 import { Button } from "./button";
 
+/** A locked dialog is brought back only if it is still meant to be open; a dialog that was just closed on purpose must stay closed. */
+export const shouldReopen = (locked: boolean, open: boolean) => locked && open;
+
 export function Dialog({ open, onClose, title, children, wide, locked = false }:
   { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean; locked?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -17,7 +20,7 @@ export function Dialog({ open, onClose, title, children, wide, locked = false }:
       ref={ref}
       // While locked (a long task is running) the dialog cannot be dismissed by Esc or by clicking outside.
       onCancel={(e) => { if (locked) e.preventDefault(); }}
-      onClose={() => { if (locked) { ref.current?.showModal(); return; } onClose(); }}
+      onClose={() => { if (shouldReopen(locked, open)) { ref.current?.showModal(); return; } onClose(); }}
       onClick={(e) => { if (!locked && e.target === ref.current) onClose(); }}
       className={`m-auto max-h-[92dvh] w-[calc(100%-1.5rem)] ${wide ? "max-w-3xl" : "max-w-lg"} rounded-xl2 border border-line bg-cream-surface p-0 text-ink shadow-xl backdrop:bg-black/60`}
     >

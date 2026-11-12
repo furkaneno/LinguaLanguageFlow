@@ -57,7 +57,7 @@ export default function ClassPage() {
   async function confirmDelete() {
     if (!toDelete) return;
     setDeleting(true);
-    try { await deleteCard(uid, classId, toDelete.id); toast("Card deleted"); setToDelete(null); await load(); }
+    try { await deleteCard(uid, classId, toDelete.id); toast("Card deleted"); setDeleting(false); setToDelete(null); await load(); }
     catch (e) { toast(firestoreErrorMessage(e), "error"); }
     finally { setDeleting(false); }
   }

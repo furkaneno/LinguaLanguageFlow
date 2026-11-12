@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { parseCsv } from "@/lib/import/parse";
 import { DEFAULT_LANGUAGES, LANGUAGES, LANG_CODES, isLangCode, pairName, pairShort } from "@/lib/languages";
 import { normalizeSpanish, normalizerFor } from "@/lib/text/normalize";
 import { scoreSpoken } from "@/lib/text/similarity";
@@ -51,17 +50,10 @@ describe("any language pair", () => {
   });
 });
 
-describe("search and import across languages", () => {
+describe("search across languages", () => {
   it("finds Spanish text without typing accents", () => {
     const cards = [{ id: "a", number: 1, englishText: "¿Dónde está la canción?", turkishMeaning: "Şarkı nerede?" }];
     expect(createSearch(cards)("cancion")).toHaveLength(1);
     expect(createSearch(cards)("sarki")).toHaveLength(1);
-  });
-  it("CSV accepts front/back and question/answer headers", () => {
-    for (const header of ["front,back", "question,answer", "Question,Answer", "english,turkish"]) {
-      const p = parseCsv(`${header}\nWhy flying?,Because I love it`);
-      if ("error" in p) throw new Error(p.error);
-      expect(p.rows[0]).toMatchObject({ english: "Why flying?", turkish: "Because I love it", status: "valid" });
-    }
   });
 });

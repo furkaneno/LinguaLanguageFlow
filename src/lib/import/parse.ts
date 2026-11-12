@@ -51,42 +51,6 @@ export function parseBulkText(text: string, existingKeys: Iterable<string> = [])
   return summarize(rows);
 }
 
-/** Minimal RFC 4180 parser (quoted fields, escaped quotes, embedded newlines). */
-export function parseCsvRecords(text: string): string[][] {
-  const out: string[][] = [];
-  let row: string[] = [], field = "", quoted = false;
-  const src = text.replace(/^\uFEFF/, "");
-  for (let i = 0; i < src.length; i++) {
-    const c = src[i]!;
-    if (quoted) {
-      if (c === '"' && src[i + 1] === '"') { field += '"'; i++; }
-      else if (c === '"') quoted = false;
-      else field += c;
-    } else if (c === '"') quoted = true;
-    else if (c === ",") { row.push(field); field = ""; }
-    else if (c === "\n" || c === "\r") {
-      if (c === "\r" && src[i + 1] === "\n") i++;
-      row.push(field); field = "";
-      if (row.some((f) => f.trim())) out.push(row);
-      row = [];
-    } else field += c;
-  }
-  row.push(field);
-  if (row.some((f) => f.trim())) out.push(row);
-  return out;
-}
-
-/** CSV must be UTF-8 with a header row naming the front column (front, question, word, english) and the back column (back, answer, meaning, turkish). */
-export function parseCsv(text: string, existingKeys: Iterable<string> = []): ImportPreview | { error: string } {
-  const records = parseCsvRecords(text);
-  const header = records[0]?.map((h) => h.trim().toLowerCase()) ?? [];
-  const find = (names: string[]) => header.findIndex((h) => names.includes(h));
-  const ei = find(["front", "question", "word", "english"]), ti = find(["back", "answer", "meaning", "turkish"]);
-  if (ei === -1 || ti === -1) return { error: 'CSV needs a header row with "front" and "back" columns ("question" and "answer" also work).' };
-  const seen = new Set(existingKeys);
-  return summarize(records.slice(1).map((r, i) => validate(i + 2, r[ei] ?? "", r[ti] ?? "", seen)));
-}
-
 export function chunk<T>(items: T[], size: number = LIMITS.batchSize): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));

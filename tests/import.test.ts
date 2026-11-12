@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cardKey, chunk, parseBulkText, parseCsv } from "@/lib/import/parse";
+import { cardKey, chunk, parseBulkText } from "@/lib/import/parse";
 
 describe("bulk text import", () => {
   const sample = `I paid the ultimate price for it. | Bedelini ağır ödedim.
@@ -25,18 +25,6 @@ elevates my life | Hayatımı yükseltiyor`;
   });
   it("keeps extra pipes in the Turkish side", () => {
     expect(parseBulkText("a | b | c").rows[0]!.turkish).toBe("b | c");
-  });
-});
-
-describe("csv import", () => {
-  it("reads headers in any order, quotes and commas", () => {
-    const p = parseCsv('Turkish,English\n"Merhaba, dünya",Hello world\nİyi,Good');
-    if ("error" in p) throw new Error(p.error);
-    expect(p.validCount).toBe(2);
-    expect(p.rows[0]).toMatchObject({ english: "Hello world", turkish: "Merhaba, dünya" });
-  });
-  it("errors on missing headers", () => {
-    expect(parseCsv("a,b\n1,2")).toHaveProperty("error");
   });
 });
 

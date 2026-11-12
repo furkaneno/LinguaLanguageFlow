@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { FormError, TextArea } from "@/components/ui/field";
-import { parseBulkText, parseCsv } from "@/lib/import/parse";
+import { parseBulkText } from "@/lib/import/parse";
+import { extractPdfLines, joinWrappedLines, pdfImportMessage } from "@/lib/import/pdf";
 import { LANGUAGES, type ClassLanguages } from "@/lib/languages";
 import { firestoreErrorMessage, importCards } from "@/lib/firebase/repo";
 
@@ -31,6 +32,9 @@ function ImportBody({ uid, classId, existingKeys, languages, onImported, onClose
   const frontName = LANGUAGES[languages.front].name, backName = LANGUAGES[languages.back].name;
   const [text, setText] = useState("");
   const [fileError, setFileError] = useState<string | null>(null);
+  const [reading, setReading] = useState(false);
+  const [rawLines, setRawLines] = useState<string[] | null>(null);
+  const [joinWrapped, setJoinWrapped] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const preview = useMemo(() => parseBulkText(text, existingKeys), [text, existingKeys]);
@@ -38,11 +42,19 @@ function ImportBody({ uid, classId, existingKeys, languages, onImported, onClose
 
   async function onFile(file: File | undefined) {
     if (!file) return;
-    setFileError(null);
-    const parsed = parseCsv(await file.text(), []);
-    if ("error" in parsed) { setFileError(parsed.error); return; }
-    // Load into the editor so rows can be corrected before importing.
-    setText(parsed.rows.map((r) => `${r.english} | ${r.turkish}`).join("\n"));
+    setFileError(null); setReading(true);
+    try {
+      const lines = await extractPdfLines(await file.arrayBuffer());
+      setRawLines(lines);
+      // Load into the editor so rows can be corrected before importing.
+      setText((joinWrapped ? joinWrappedLines(lines) : lines).join("\n"));
+    } catch (e) { setFileError(pdfImportMessage(e)); }
+    finally { setReading(false); }
+  }
+
+  function toggleJoin(on: boolean) {
+    setJoinWrapped(on);
+    if (rawLines) setText((on ? joinWrappedLines(rawLines) : rawLines).join("\n"));
   }
 
   async function run() {
@@ -65,15 +77,24 @@ function ImportBody({ uid, classId, existingKeys, languages, onImported, onClose
   return (
     <div className="space-y-4">
       <p className="text-sm text-ink-muted">
-        Paste one card per line as <code className="rounded bg-blush/60 px-1.5 py-0.5">front | back</code> ({frontName} | {backName}). Or choose a UTF-8 CSV with <code className="rounded bg-blush/60 px-1.5 py-0.5">front</code> and <code className="rounded bg-blush/60 px-1.5 py-0.5">back</code> column headers (<code className="rounded bg-blush/60 px-1.5 py-0.5">question</code> and <code className="rounded bg-blush/60 px-1.5 py-0.5">answer</code> also work); it loads here so you can fix rows first.
+        Paste one card per line as <code className="rounded bg-blush/60 px-1.5 py-0.5">front | back</code> ({frontName} | {backName}). Or choose a PDF whose lines look like that, one card per line; its text loads here so you can fix rows first.
       </p>
       <FormError message={error ?? fileError} />
       <TextArea label="Cards" rows={7} value={text} onChange={(e) => setText(e.target.value)} disabled={busy}
         placeholder={`${LANGUAGES[languages.front].sampleFront} | ${LANGUAGES[languages.back].sampleBack}`} />
       <div>
-        <label className="text-sm font-medium" htmlFor="csv">CSV file</label>
-        <input id="csv" type="file" accept=".csv,text/csv" disabled={busy} onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ""; }}
+        <label className="text-sm font-medium" htmlFor="pdf">PDF file</label>
+        <input id="pdf" type="file" accept=".pdf,application/pdf" disabled={busy || reading}
+          onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ""; }}
           className="mt-1.5 block w-full text-sm file:mr-3 file:min-h-11 file:rounded-full file:border-0 file:bg-blush file:px-4 file:font-medium" />
+        <p className="mt-1.5 text-xs text-ink-muted">Example line: hello | merhaba. Scanned PDFs (pictures of text) can&apos;t be read.</p>
+        {reading && <p role="status" className="mt-1.5 text-sm text-ink-muted">Reading the PDF…</p>}
+        {rawLines && (
+          <label className="mt-2 flex items-start gap-2 text-sm">
+            <input type="checkbox" checked={joinWrapped} onChange={(e) => toggleJoin(e.target.checked)} className="mt-1 h-4 w-4 accent-brand" />
+            <span>Join lines without “|” to the card above (for long answers that wrap). Changing this reloads the text from the PDF.</span>
+          </label>
+        )}
       </div>
 
       {preview.rows.length > 0 && (

@@ -19,7 +19,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   if (loading || !user) return <Splash />;
   return (
     <ToastProvider>
-      <header className="border-b border-line bg-cream-surface">
+      <header className="sticky top-0 z-30 border-b border-line bg-cream-surface">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 py-3">
           <Brand href="/dashboard" />
           <div className="flex items-center gap-1">

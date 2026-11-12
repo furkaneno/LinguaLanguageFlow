@@ -61,7 +61,7 @@ function variables(p: Palette): string {
     ["good", p.good], ["good-dark", p.goodDark], ["ink", p.ink], ["ink-muted", p.inkMuted], ["line", p.line],
     ["success", p.success], ["danger", p.danger], ["on-danger", p.onDanger], ["err", p.err],
   ];
-  return pairs.map(([k, v]) => `--c-${k}:${rgb(v)};`).join("") + `--pattern-opacity:${p.patternOpacity};--pattern-display:${p.pattern === "none" ? "none" : "block"};color-scheme:${p.scheme};`;
+  return pairs.map(([k, v]) => `--c-${k}:${rgb(v)};`).join("") + `--pattern-opacity:${p.patternOpacity};--pattern-display:${p.pattern === "animals" ? "block" : "none"};color-scheme:${p.scheme};`;
 }
 
 /** CSS custom properties for every theme; the default theme also applies to :root. */

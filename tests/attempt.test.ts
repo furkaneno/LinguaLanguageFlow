@@ -143,4 +143,58 @@ describe("two-stage attempt flow with a mocked provider", () => {
     expect(rec.calls.map((c) => c.lang)).toEqual(["es-ES", "es-ES"]);
     expect(out).toMatchObject({ kind: "scored", passed: true });
   });
+
+  describe("free practice (no pass mark)", () => {
+    const run2 = (s: ReturnType<typeof session>, stage: Stage, rec: MockRecognizer, passMark?: number) =>
+      runAttempt(stage, {
+        recognizer: rec, dispatch: s.dispatch, lang: stage === "english" ? "en-US" : "tr-TR",
+        ...(passMark !== undefined ? { passMark } : {}),
+        assess: (alts) => (stage === "english" ? recognitionMatchAssessor.assess(EN, alts) : lexicalTurkishEvaluator.evaluate(TR, alts)),
+      });
+
+    it("lets unrelated speech move on, but still reports the score", async () => {
+      const s = session();
+      const out = await run2(s, "english", new MockRecognizer([heard("what a lovely day")]), 0);
+      expect(out).toMatchObject({ kind: "scored", passed: true });
+      expect(out.kind === "scored" && out.result.score).toBeLessThan(30);
+      expect(s.ctx.status).toBe("turkish_ready");
+      expect(s.ctx.lastScore).toBeLessThan(30);
+    });
+    it("completes the card with two low-scoring attempts", async () => {
+      const s = session();
+      await run2(s, "english", new MockRecognizer([heard("completely wrong")]), 0);
+      await run2(s, "turkish", new MockRecognizer([heard("tamamen alakasız")]), 0);
+      expect(s.ctx.status).toBe("card_completed");
+      expect(s.ctx.completedIds).toEqual(["c1"]);
+      expect(s.ctx.attempts).toBe(2);
+    });
+    it("counts speech that can't be compared as 0% instead of getting stuck", async () => {
+      const s = session();
+      const out = await run2(s, "english", new MockRecognizer([heard("   ")]), 0);
+      expect(out).toMatchObject({ kind: "scored", passed: true });
+      expect(out.kind === "scored" && out.result.score).toBe(0);
+      expect(s.ctx.status).toBe("turkish_ready");
+    });
+    it("still does not pass when nothing was heard (an error is not a score)", async () => {
+      const s = session();
+      const out = await run2(s, "english", new MockRecognizer([{ ok: false, error: "no_speech" }]), 0);
+      expect(out.kind).toBe("error");
+      expect(s.ctx.status).toBe("english_ready");
+      expect(s.ctx.attempts).toBe(0);
+    });
+    it("works for any language pair", async () => {
+      const s = session();
+      const out = await runAttempt("english", {
+        recognizer: new MockRecognizer([heard("hola que tal")]), dispatch: s.dispatch, lang: "es-ES", passMark: 0,
+        assess: (alts) => recognitionMatchAssessor.assess("¿Por qué quieres volar?", alts, "es"),
+      });
+      expect(out).toMatchObject({ kind: "scored", passed: true });
+    });
+    it("without it, the same speech fails as before", async () => {
+      const s = session();
+      const out = await run2(s, "english", new MockRecognizer([heard("what a lovely day")]));
+      expect(out).toMatchObject({ kind: "scored", passed: false });
+      expect(s.ctx.status).toBe("english_failed");
+    });
+  });
 });

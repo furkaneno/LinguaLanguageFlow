@@ -20,6 +20,8 @@ interface Deps {
   longForm?: boolean;
   /** Live text while the user is speaking. */
   onInterim?: (text: string) => void;
+  /** 0 turns the pass mark off: any score, even 0%, lets the user move on. Omit for the normal 80%. */
+  passMark?: number;
   /** Cloud engine: microphone level and processing phase. */
   onLevel?: (level: number) => void;
   onPhase?: (phase: "listening" | "processing") => void;
@@ -28,7 +30,7 @@ interface Deps {
 }
 
 /** One listen -> score cycle, driving the state machine. Never invents a score. */
-export async function runAttempt(stage: Stage, { recognizer, assess, dispatch, lang, longForm = false, onInterim, onLevel, onPhase }: Deps): Promise<AttemptOutcome> {
+export async function runAttempt(stage: Stage, { recognizer, assess, dispatch, lang, longForm = false, passMark, onInterim, onLevel, onPhase }: Deps): Promise<AttemptOutcome> {
   dispatch({ type: "START_RECORDING" });
   const heard = await recognizer.listen({
     lang,
@@ -42,9 +44,11 @@ export async function runAttempt(stage: Stage, { recognizer, assess, dispatch, l
     return { kind: "error", stage, error: heard.error };
   }
   dispatch({ type: "STOP_RECORDING" });
-  const result = assess(heard.alternatives);
-  dispatch({ type: "RESULT", score: result.score });
+  let result = assess(heard.alternatives);
+  // Without a pass mark, something was heard but nothing could be compared: count it as 0% so the user can move on.
+  if (passMark === 0 && result.score === null) result = { ...result, score: 0 };
+  dispatch({ type: "RESULT", score: result.score, ...(passMark !== undefined ? { passMark } : {}) });
   if (result.score === null) return { kind: "unscored", stage };
-  const threshold = stage === "english" ? ENGLISH_PASS_THRESHOLD : TURKISH_PASS_THRESHOLD;
+  const threshold = passMark ?? (stage === "english" ? ENGLISH_PASS_THRESHOLD : TURKISH_PASS_THRESHOLD);
   return { kind: "scored", stage, result, passed: passes(result.score, threshold), provider: heard.provider };
 }

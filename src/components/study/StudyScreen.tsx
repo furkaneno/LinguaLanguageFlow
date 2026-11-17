@@ -183,7 +183,7 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
           </p>
         )}
 
-        {last && !recording && !evaluating && <ScoreBlock last={last} threshold={last.stage === "english" ? s.thresholds.english : s.thresholds.turkish} />}
+        {last && !recording && !evaluating && <ScoreBlock last={last} noPassMark={s.noPassMark} threshold={last.stage === "english" ? s.thresholds.english : s.thresholds.turkish} />}
         {!last && !recording && !evaluating && !done && <p className="sr-only">Pass mark {threshold}%</p>}
         {s.saveError && <p role="alert" className="text-sm text-err"><strong>Not saved: </strong>{s.saveError}</p>}
       </div>

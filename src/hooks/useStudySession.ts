@@ -3,6 +3,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 import { ENGLISH_PASS_THRESHOLD, SPEECH, TURKISH_PASS_THRESHOLD } from "@/config/app";
 import { LANGUAGES, type ClassLanguages } from "@/lib/languages";
 import { isIOS } from "@/lib/speech/platform";
+import { usePracticeMode } from "@/components/practice/PracticeModeProvider";
 import { clearPlace, recordAttempt, recordCardCompletion, savePlace, saveSessionProgress, touchClassStudied, type CardStats } from "@/lib/firebase/study";
 import { nextPlace, type StudyPlace } from "@/lib/study/order";
 import { BrowserSynthesisProvider } from "@/lib/speech/browserSynthesis";
@@ -34,6 +35,7 @@ const emptyStats = (): CardStats => ({ englishAttempts: 0, turkishAttempts: 0, l
 
 export function useStudySession(uid: string, classId: string, cards: Map<string, CardDoc>, init: SessionInit, languages: ClassLanguages) {
   const [ctx, dispatch] = useReducer(studyReducer, initialContext);
+  const { noPassMark } = usePracticeMode();
   const [last, setLast] = useState<LastAttempt | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [voiceMissing, setVoiceMissing] = useState(false);
@@ -142,9 +144,9 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
   useEffect(() => {
     if (ctx.status !== "card_completed") return;
     const from = ctx.index;
-    const t = setTimeout(() => dispatch({ type: "ADVANCE", fromIndex: from }), SPEECH.advanceDelayMs);
+    const t = setTimeout(() => dispatch({ type: "ADVANCE", fromIndex: from }), (noPassMark ? SPEECH.advanceDelayFreeMs : SPEECH.advanceDelayMs));
     return () => clearTimeout(t);
-  }, [ctx.status, ctx.index]);
+  }, [ctx.status, ctx.index, noPassMark]);
 
   const stage: Stage = ctx.status.startsWith("turkish") || ctx.status === "card_completed" ? "turkish" : "english";
 
@@ -159,7 +161,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
     const longForm = target.trim().split(/\s+/).length >= SPEECH.longFormWords;
     try {
       const outcome = await runAttempt(stage, {
-        recognizer: getRecognizer(), dispatch, lang: LANGUAGES[code].speech, longForm, onInterim: setHeard, onLevel: setLevel, onPhase: setPhase,
+        recognizer: getRecognizer(), dispatch, lang: LANGUAGES[code].speech, longForm, onInterim: setHeard, onLevel: setLevel, onPhase: setPhase, ...(noPassMark ? { passMark: 0 } : {}),
         assess: (alts) => (stage === "english" ? recognitionMatchAssessor.assess(target, alts, code) : lexicalTurkishEvaluator.evaluate(target, alts, code)),
       });
       if (outcome.kind !== "scored") return;
@@ -172,7 +174,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
         scoreType: outcome.result.scoreType, passed: outcome.passed, provider: outcome.provider,
       }).catch(reportSaveError);
     } finally { busy.current = false; setHeard(""); setLevel(0); setPhase("listening"); }
-  }, [ctx.status, card, stage, uid, init.sessionId, languages.front, languages.back, reportSaveError]);
+  }, [ctx.status, card, stage, uid, init.sessionId, languages.front, languages.back, noPassMark, reportSaveError]);
 
   const skip = useCallback(() => {
     if (busy.current) return;
@@ -189,7 +191,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
 
   return {
     ctx, card, stage, last, support,
-    saveError, voiceMissing, speaking, heard, level, phase, mic, listen, skip,
+    saveError, voiceMissing, speaking, heard, level, phase, noPassMark, mic, listen, skip,
     thresholds: { english: ENGLISH_PASS_THRESHOLD, turkish: TURKISH_PASS_THRESHOLD },
     elapsedMs: () => Date.now() - startedAt.current,
   };

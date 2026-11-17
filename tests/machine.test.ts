@@ -91,4 +91,26 @@ describe("study machine", () => {
     const done = run([...english(90), ...english(90)], load());
     expect(studyReducer(done, { type: "SKIP" })).toBe(done);
   });
+
+  describe("free practice (no pass mark)", () => {
+    const free = (score: number | null): StudyEvent[] => [{ type: "START_RECORDING" }, { type: "STOP_RECORDING" }, { type: "RESULT", score, passMark: 0 }];
+    it("lets any score move on in both stages: 0%, 1%, 50%, 90%", () => {
+      for (const score of [0, 1, 50, 90]) {
+        expect(run(free(score), load()).status, `English ${score}%`).toBe("turkish_ready");
+        const done = run([...free(score), ...free(score)], load());
+        expect(done.status, `Turkish ${score}%`).toBe("card_completed");
+        expect(done.completedIds).toEqual(["a"]);
+        expect(done.lastScore).toBe(score); // the score is still kept so it can be shown
+      }
+    });
+    it("still never passes when there is no score at all", () => {
+      const c = run(free(null), load());
+      expect(c.status).toBe("english_failed");
+      expect(c.attempts).toBe(0);
+    });
+    it("leaves the normal 80% mark alone when no pass mark is given", () => {
+      expect(run(english(79), load()).status).toBe("english_failed");
+      expect(run(english(80), load()).status).toBe("turkish_ready");
+    });
+  });
 });

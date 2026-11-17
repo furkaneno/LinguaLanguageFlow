@@ -19,6 +19,8 @@ export const SPEECH = {
   longTimeoutMs: 90000,
   longSilenceMs: 3500,
   advanceDelayMs: 1400,
+  /** Longer pause before the next card when there is no pass mark, so the score can be read. */
+  advanceDelayFreeMs: 2600,
   maxSessionCards: 2000,
 } as const;
 

@@ -5,6 +5,7 @@ import { useEffect, type ReactNode } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Brand } from "@/components/layout/Brand";
 import { ConfigMissing, Splash } from "@/components/layout/Splash";
+import { PassMarkSwitch } from "@/components/practice/PassMarkSwitch";
 import { ThemeQuickButton } from "@/components/theme/ThemeSwitcher";
 import { ToastProvider } from "@/components/ui/toast";
 
@@ -32,6 +33,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <ThemeQuickButton />
+          <PassMarkSwitch />
           </div>
         </div>
       </header>

@@ -22,7 +22,8 @@ export type StudyEvent =
   | { type: "START_RECORDING" }
   | { type: "STOP_RECORDING" }
   | { type: "CANCEL_RECORDING"; notice?: string }
-  | { type: "RESULT"; score: number | null }
+  /** `passMark` overrides the usual 80%; 0 means any score lets you move on (free practice). */
+  | { type: "RESULT"; score: number | null; passMark?: number }
   | { type: "RETRY" }
   | { type: "ADVANCE"; fromIndex: number }
   | { type: "SKIP" }
@@ -80,7 +81,7 @@ export function studyReducer(ctx: StudyContext, ev: StudyEvent): StudyContext {
         return { ...ctx, status: english ? "english_failed" : "turkish_failed", lastScore: null,
           notice: "We couldn't evaluate that attempt. Please try again." };
       }
-      const ok = passes(ev.score, english ? ENGLISH_PASS_THRESHOLD : TURKISH_PASS_THRESHOLD);
+      const ok = passes(ev.score, ev.passMark ?? (english ? ENGLISH_PASS_THRESHOLD : TURKISH_PASS_THRESHOLD));
       const base = { ...ctx, attempts: ctx.attempts + 1, lastScore: ev.score, notice: null };
       if (english) return { ...base, status: ok ? "turkish_ready" : "english_failed" };
       if (!ok) return { ...base, status: "turkish_failed" };

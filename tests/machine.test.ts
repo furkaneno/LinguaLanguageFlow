@@ -113,4 +113,11 @@ describe("study machine", () => {
       expect(run(english(80), load()).status).toBe("turkish_ready");
     });
   });
+
+  it("pressing Next and the timer firing together only advances once", () => {
+    const done = run([...english(90), ...english(90)], load(["a", "b", "c"]));
+    const once = studyReducer(done, { type: "ADVANCE", fromIndex: 0 });
+    expect(once.index).toBe(1);
+    expect(studyReducer(once, { type: "ADVANCE", fromIndex: 0 })).toBe(once);
+  });
 });

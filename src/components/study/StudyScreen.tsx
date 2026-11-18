@@ -136,6 +136,15 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
           <p lang={languages.front} className="font-display text-3xl leading-snug sm:text-5xl">{card?.englishText}</p>
         </div>
 
+        {done && s.noPassMark && card && (
+          <div role="status" className="w-full max-w-xl rounded-xl2 border-2 border-brand bg-cream-surface px-5 py-3 text-left">
+            <p className="text-xs font-medium text-brand-light">The saved answer</p>
+            <p lang={languages.back} className="mt-1 max-h-40 overflow-y-auto whitespace-pre-line break-words text-lg leading-snug">{card.turkishMeaning}</p>
+            <div className="mt-3 flex justify-end">
+              <Button onClick={s.next}>{ctx.index + 1 >= ctx.cardIds.length ? "Finish" : "Next card"}</Button>
+            </div>
+          </div>
+        )}
         {stage === "turkish" && hintVisible && !done && card && (
           <div className="w-full max-w-xl rounded-xl2 border-2 border-brand bg-cream-surface px-5 py-3 text-left">
             <p className="text-xs font-medium text-brand-light">Hint · the saved answer. You still need to say it.</p>

@@ -4,6 +4,7 @@ import { ENGLISH_PASS_THRESHOLD, SPEECH, TURKISH_PASS_THRESHOLD } from "@/config
 import { LANGUAGES, type ClassLanguages } from "@/lib/languages";
 import { isIOS } from "@/lib/speech/platform";
 import { usePracticeMode } from "@/components/practice/PracticeModeProvider";
+import { advanceDelay } from "@/lib/study/timing";
 import { clearPlace, recordAttempt, recordCardCompletion, savePlace, saveSessionProgress, touchClassStudied, type CardStats } from "@/lib/firebase/study";
 import { nextPlace, type StudyPlace } from "@/lib/study/order";
 import { BrowserSynthesisProvider } from "@/lib/speech/browserSynthesis";
@@ -94,6 +95,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
 
   const cardId = ctx.cardIds[ctx.index];
   const card = cardId ? cards.get(cardId) : undefined;
+  const answerLength = card?.turkishMeaning.length ?? 0;
 
   // Reset per-card state when the card changes.
   useEffect(() => { stats.current = emptyStats(); setLast(null); }, [ctx.index]);
@@ -144,9 +146,11 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
   useEffect(() => {
     if (ctx.status !== "card_completed") return;
     const from = ctx.index;
-    const t = setTimeout(() => dispatch({ type: "ADVANCE", fromIndex: from }), (noPassMark ? SPEECH.advanceDelayFreeMs : SPEECH.advanceDelayMs));
+    const t = setTimeout(() => dispatch({ type: "ADVANCE", fromIndex: from }), advanceDelay(noPassMark, answerLength));
     return () => clearTimeout(t);
-  }, [ctx.status, ctx.index, noPassMark]);
+  }, [ctx.status, ctx.index, noPassMark, answerLength]);
+
+  const next = useCallback(() => dispatch({ type: "ADVANCE", fromIndex: ctx.index }), [ctx.index]); // the timer may fire too; the machine ignores the second one
 
   const stage: Stage = ctx.status.startsWith("turkish") || ctx.status === "card_completed" ? "turkish" : "english";
 
@@ -191,7 +195,7 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
 
   return {
     ctx, card, stage, last, support,
-    saveError, voiceMissing, speaking, heard, level, phase, noPassMark, mic, listen, skip,
+    saveError, voiceMissing, speaking, heard, level, phase, noPassMark, mic, listen, skip, next,
     thresholds: { english: ENGLISH_PASS_THRESHOLD, turkish: TURKISH_PASS_THRESHOLD },
     elapsedMs: () => Date.now() - startedAt.current,
   };

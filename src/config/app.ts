@@ -21,6 +21,9 @@ export const SPEECH = {
   advanceDelayMs: 1400,
   /** Longer pause before the next card when there is no pass mark, so the score can be read. */
   advanceDelayFreeMs: 2600,
+  /** In free practice the saved answer is shown, so reading time grows with its length (up to a limit). */
+  advanceFreePerCharMs: 55,
+  advanceFreeMaxMs: 14000,
   maxSessionCards: 2000,
 } as const;
 

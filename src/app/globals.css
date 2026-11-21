@@ -3,9 +3,18 @@
 @tailwind utilities;
 
 @layer base {
-  body { @apply bg-cream text-ink antialiased; }
+  body { @apply bg-cream text-ink antialiased select-none; -webkit-touch-callout: none; }
+  /* Text can only be selected, and a blinking cursor can only appear, where you actually type. */
+  input, textarea, select, [contenteditable="true"] { -webkit-user-select: text; user-select: text; }
   :focus-visible { @apply outline outline-2 outline-offset-2 outline-brand; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* Snow that gathers on top of the dashboard cards in the Winter theme (its height is set by the snowfall as time passes). */
+.snow-cap { display: none; position: absolute; left: 14px; right: 14px; bottom: 100%; margin-bottom: -3px; width: calc(100% - 28px); height: calc(var(--snow-cap, 0) * 1px); pointer-events: none; }
+[data-theme="winter"] .snow-cap { display: block; }
+
+/* Winter: the snow pile is light, so text lying directly on it gets a soft dark halo and stays readable (cards are unaffected). */
+[data-theme="winter"] main { text-shadow: 0 0 2px rgba(12, 22, 38, 0.95), 0 0 7px rgba(12, 22, 38, 0.75); }

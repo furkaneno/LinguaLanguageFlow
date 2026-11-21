@@ -1,11 +1,13 @@
 import { Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { SnowCap } from "@/components/snow/SnowCap";
 import { pairShort, type ClassLanguages } from "@/lib/languages";
 import type { ClassDoc } from "@/types";
 
 export function ClassCard({ c, languages, onEdit, onDelete }: { c: ClassDoc; languages: ClassLanguages; onEdit: () => void; onDelete: () => void }) {
   return (
-    <li className="flex flex-col rounded-xl2 border border-line bg-cream-surface p-5 shadow-sm">
+    <li className="relative flex flex-col rounded-xl2 border-2 border-brand bg-cream-surface p-5 shadow-sm">
+      <SnowCap />
       <Link href={`/classes/${c.id}`} className="group flex-1 rounded-lg">
         <h2 className="font-display text-xl group-hover:text-brand-light">{c.name}</h2>
         {c.description && <p className="mt-1 line-clamp-2 text-sm text-ink-muted">{c.description}</p>}

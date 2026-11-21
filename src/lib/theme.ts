@@ -4,8 +4,8 @@ export const THEME_STORAGE_KEY = "lingua-theme";
 export interface Palette {
   name: string;
   scheme: "dark" | "light";
-  /** Decorative background: plain colour, or illustrated animals. */
-  pattern: "none" | "animals";
+  /** Decorative background: plain colour, illustrated animals, or falling snow that slowly piles up. */
+  pattern: "none" | "animals" | "snow";
   patternOpacity: number;
   bg: string; surface: string; blush: string; blushAccent: string;
   brand: string; brandDark: string; brandLight: string; onBrand: string;
@@ -38,6 +38,22 @@ export const PALETTES = {
     good: "#2C6B3A", goodDark: "#1F5A2E",
     ink: "#2B1B10", inkMuted: "#55402E", line: "#B79A6C",
     success: "#D3E2BC", danger: "#F1CFC4", onDanger: "#6E1D10", err: "#8F1D0B",
+  },
+  mono: {
+    name: "Black & White", scheme: "dark", pattern: "none", patternOpacity: 0,
+    bg: "#000000", surface: "#0E0E0F", blush: "#1C1C1E", blushAccent: "#2C2C2E",
+    brand: "#FFFFFF", brandDark: "#D4D4D8", brandLight: "#FFFFFF", onBrand: "#000000",
+    good: "#7EE2A8", goodDark: "#4CC585",
+    ink: "#F5F5F7", inkMuted: "#A1A1A6", line: "#2C2C2E",
+    success: "#0F3D28", danger: "#3B1219", onDanger: "#FFD9DC", err: "#FF8A93",
+  },
+  winter: {
+    name: "Winter Night", scheme: "dark", pattern: "snow", patternOpacity: 0,
+    bg: "#1D2D44", surface: "#24384F", blush: "#2F4A68", blushAccent: "#3B5A7C",
+    brand: "#3D7F8B", brandDark: "#336C77", brandLight: "#8CCBD6", onBrand: "#FFFFFF",
+    good: "#8EE3C8", goodDark: "#5CC4A6",
+    ink: "#EAF2F8", inkMuted: "#A9BCD0", line: "#3A5273",
+    success: "#14493F", danger: "#4A1D2B", onDanger: "#FFD9E0", err: "#FF9AAB",
   },
 } as const satisfies Record<string, Palette>;
 

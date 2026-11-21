@@ -4,6 +4,7 @@ import "@fontsource-variable/fraunces";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { BackgroundPattern } from "@/components/layout/BackgroundPattern";
 import { PracticeModeProvider } from "@/components/practice/PracticeModeProvider";
+import { Snowfall } from "@/components/snow/Snowfall";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { APP_NAME, APP_TAGLINE } from "@/config/app";
 import { THEME_INIT_SCRIPT, themeCss } from "@/lib/theme";
@@ -21,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="font-sans">
         <BackgroundPattern />
-        <AuthProvider><ThemeProvider><PracticeModeProvider>{children}</PracticeModeProvider></ThemeProvider></AuthProvider>
+        <AuthProvider><ThemeProvider><PracticeModeProvider><Snowfall />{children}</PracticeModeProvider></ThemeProvider></AuthProvider>
       </body>
     </html>
   );

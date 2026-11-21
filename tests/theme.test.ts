@@ -25,10 +25,10 @@ const PAIRS: [keyof Palette, keyof Palette][] = [
 
 describe("themes", () => {
   it("has the three themes, with wine as the default", () => {
-    expect(THEME_IDS).toEqual(["wine", "forest", "retro"]);
+    expect(THEME_IDS).toEqual(["wine", "forest", "retro", "mono", "winter"]);
     expect(DEFAULT_THEME).toBe("wine");
   });
-  for (const id of ["wine", "forest", "retro"] as const) {
+  for (const id of ["wine", "forest", "retro", "mono", "winter"] as const) {
     it(`${id}: every text/background pair is readable`, () => {
       const p = PALETTES[id] as Palette;
       for (const [fg, bg] of PAIRS) {
@@ -46,6 +46,8 @@ describe("themes", () => {
     expect(PALETTES.wine.pattern).toBe("none");
     expect(PALETTES.forest.pattern).toBe("none");
     expect(PALETTES.retro.pattern).toBe("animals");
+    expect(PALETTES.mono.pattern).toBe("none");
+    expect(PALETTES.winter.pattern).toBe("snow");
     const css = themeCss();
     expect(css).toMatch(/\[data-theme="forest"\]\{[^}]*--pattern-display:none;/);
     expect(css).toMatch(/\[data-theme="retro"\]\{[^}]*--pattern-display:block;/);
@@ -64,7 +66,9 @@ describe("themes", () => {
   it("cycles through themes and wraps around", () => {
     expect(nextTheme("wine")).toBe("forest");
     expect(nextTheme("forest")).toBe("retro");
-    expect(nextTheme("retro")).toBe("wine");
+    expect(nextTheme("retro")).toBe("mono");
+    expect(nextTheme("mono")).toBe("winter");
+    expect(nextTheme("winter")).toBe("wine");
   });
   it("generates CSS variables for every theme, and the default also applies to :root", () => {
     const css = themeCss();

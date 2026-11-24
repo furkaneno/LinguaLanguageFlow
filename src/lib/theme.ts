@@ -4,8 +4,8 @@ export const THEME_STORAGE_KEY = "lingua-theme";
 export interface Palette {
   name: string;
   scheme: "dark" | "light";
-  /** Decorative background: plain colour, illustrated animals, or falling snow that slowly piles up. */
-  pattern: "none" | "animals" | "snow";
+  /** Decorative background: plain colour, illustrated animals, falling snow that piles up, or shooting stars that streak by. */
+  pattern: "none" | "animals" | "snow" | "stars";
   patternOpacity: number;
   bg: string; surface: string; blush: string; blushAccent: string;
   brand: string; brandDark: string; brandLight: string; onBrand: string;
@@ -40,7 +40,7 @@ export const PALETTES = {
     success: "#D3E2BC", danger: "#F1CFC4", onDanger: "#6E1D10", err: "#8F1D0B",
   },
   mono: {
-    name: "Black & White", scheme: "dark", pattern: "none", patternOpacity: 0,
+    name: "Black & White", scheme: "dark", pattern: "stars", patternOpacity: 0,
     bg: "#000000", surface: "#0E0E0F", blush: "#1C1C1E", blushAccent: "#2C2C2E",
     brand: "#FFFFFF", brandDark: "#D4D4D8", brandLight: "#FFFFFF", onBrand: "#000000",
     good: "#7EE2A8", goodDark: "#4CC585",

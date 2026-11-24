@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
-import { capHeight, createFlakes, flakeCount, groundDepth, newFlake, stepFlakes, surfaceY, type Flake, type FlakeKind } from "@/lib/snow/engine";
+import { capHeight, createFlakes, elapsedSince, flakeCount, groundDepth, newFlake, stepFlakes, surfaceY, type Flake, type FlakeKind } from "@/lib/snow/engine";
 import { PALETTES } from "@/lib/theme";
 
 function makeSprite(size: number, paint: (c: CanvasRenderingContext2D, s: number) => void): HTMLCanvasElement {
@@ -52,8 +52,9 @@ function drawGround(ctx: CanvasRenderingContext2D, w: number, h: number, depth: 
 
 /**
  * Winter Night backdrop: snow of mixed sizes falls on a changing wind and slowly piles up (half the screen after 15 minutes).
- * It starts from nothing every time the theme is entered or the page is loaded. It only runs while the tab is visible,
- * lightens itself on slow devices, and shows a still picture for people who asked their device to reduce motion.
+ * It starts from nothing every time the theme is entered or the page is loaded. The pile keeps growing by the clock even while
+ * you are on another tab (the falling itself only animates while the tab is visible), it lightens itself on slow devices,
+ * and it shows a still picture for people who asked their device to reduce motion.
  */
 export function Snowfall() {
   const { theme } = useTheme();
@@ -70,17 +71,19 @@ export function Snowfall() {
     const sprites = makeSprites(dpr);
     const root = document.documentElement;
     let w = 0, h = 0, flakes: Flake[] = [];
-    let elapsed = 0;            // seconds of snowfall actually shown; hidden time does not count
+    const startedAt = Date.now();
+    const wallMs = () => elapsedSince(startedAt, Date.now()); // the pile and the card snow follow the clock
+    let motion = 0;             // seconds of animation actually shown; drives the wind
     let last = 0, raf = 0, avg = 16, slow = 0;
     let sky: CanvasGradient | null = null;
 
-    const setCap = () => root.style.setProperty("--snow-cap", String(reduce ? 4 : +capHeight(elapsed * 1000).toFixed(1)));
+    const setCap = () => root.style.setProperty("--snow-cap", String(reduce ? 4 : +capHeight(wallMs()).toFixed(1)));
     setCap();
 
     const draw = () => {
       ctx.clearRect(0, 0, w, h);
       if (sky) { ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h); }
-      const depth = reduce ? h * 0.05 : groundDepth(elapsed * 1000, h);
+      const depth = reduce ? h * 0.05 : groundDepth(wallMs(), h);
       if (depth > 0.5) drawGround(ctx, w, h, depth);
       for (const f of flakes) {
         ctx.globalAlpha = f.alpha;
@@ -119,14 +122,16 @@ export function Snowfall() {
       const dt = last ? (now - last) / 1000 : 0;
       last = now;
       const step = Math.min(dt, 0.1);
-      elapsed += step;
-      stepFlakes(flakes, step, elapsed, w, h, groundDepth(elapsed * 1000, h));
+      motion += step;
+      stepFlakes(flakes, step, motion, w, h, groundDepth(wallMs(), h));
       draw();
       // On a slow device, quietly use fewer flakes instead of stuttering.
       if (dt > 0) avg = avg * 0.9 + dt * 1000 * 0.1;
       if (avg > 30 && flakes.length > 50) { if (++slow > 90) { flakes.length = Math.max(50, Math.floor(flakes.length * 0.8)); slow = 0; avg = 16; } } else slow = 0;
     };
 
+    const onVisible = () => { if (!document.hidden) { last = 0; setCap(); } }; // coming back: the pile has grown meanwhile
+    document.addEventListener("visibilitychange", onVisible);
     const observer = new ResizeObserver(resize);
     observer.observe(canvas);
     resize();
@@ -137,6 +142,7 @@ export function Snowfall() {
       cancelAnimationFrame(raf);
       if (capTimer) clearInterval(capTimer);
       observer.disconnect();
+      document.removeEventListener("visibilitychange", onVisible);
       root.style.removeProperty("--snow-cap"); // leaving the theme clears the snow, so coming back starts fresh
     };
   }, [active]);

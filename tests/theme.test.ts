@@ -46,7 +46,7 @@ describe("themes", () => {
     expect(PALETTES.wine.pattern).toBe("none");
     expect(PALETTES.forest.pattern).toBe("none");
     expect(PALETTES.retro.pattern).toBe("animals");
-    expect(PALETTES.mono.pattern).toBe("none");
+    expect(PALETTES.mono.pattern).toBe("stars");
     expect(PALETTES.winter.pattern).toBe("snow");
     const css = themeCss();
     expect(css).toMatch(/\[data-theme="forest"\]\{[^}]*--pattern-display:none;/);

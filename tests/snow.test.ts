@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PALETTES } from "@/lib/theme";
-import { capHeight, createFlakes, flakeCount, groundDepth, newFlake, SNOW, stepFlakes, surfaceY, wind } from "@/lib/snow/engine";
+import { capHeight, createFlakes, elapsedSince, flakeCount, groundDepth, newFlake, SNOW, stepFlakes, surfaceY, wind } from "@/lib/snow/engine";
 
 const seeded = (seed: number) => { let s = seed; return () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296; };
 const MIN = 60_000;
@@ -33,6 +33,21 @@ describe("snow pile", () => {
     expect(capHeight(7.5 * MIN)).toBeCloseTo(SNOW.capMaxPx / 2, 5);
     expect(capHeight(100 * MIN)).toBe(SNOW.capMaxPx);
     expect(capHeight(-1)).toBe(0);
+  });
+});
+
+describe("snow while you are away", () => {
+  it("keeps piling up by the clock: after 10 minutes on another tab the pile is the 10-minute pile", () => {
+    const start = 1_000_000;
+    expect(elapsedSince(start, start + 10 * MIN)).toBe(10 * MIN);
+    expect(groundDepth(elapsedSince(start, start + 10 * MIN), 900)).toBeCloseTo(300, 5);
+    expect(capHeight(elapsedSince(start, start + 10 * MIN))).toBeCloseTo((10 / 15) * SNOW.capMaxPx, 5);
+  });
+  it("starts from nothing again for a new visit (a new start time)", () => {
+    expect(groundDepth(elapsedSince(5_000_000, 5_000_000), 900)).toBe(0);
+  });
+  it("never goes negative if the clock is adjusted backwards", () => {
+    expect(elapsedSince(2000, 1000)).toBe(0);
   });
 });
 

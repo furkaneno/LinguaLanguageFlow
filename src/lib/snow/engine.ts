@@ -94,3 +94,6 @@ export function stepFlakes(flakes: Flake[], dtSec: number, tSec: number, w: numb
     }
   }
 }
+
+/** Time since the snowfall began, by the clock: it keeps counting while the tab is in the background. */
+export const elapsedSince = (startMs: number, nowMs: number): number => Math.max(0, nowMs - startMs);

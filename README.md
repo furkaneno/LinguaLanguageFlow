@@ -5,8 +5,6 @@ https://lingua-language.vercel.app/
 <img width="1886" height="856" alt="image" src="https://github.com/user-attachments/assets/91d3d02f-ca70-432b-8227-51c0aaf59929" />
 <img width="1902" height="861" alt="image" src="https://github.com/user-attachments/assets/2d818870-465c-4b3e-920b-bb471fb7a1e3" />
 <img width="1917" height="851" alt="image" src="https://github.com/user-attachments/assets/7782d9b6-9cb6-48ae-aeb4-7f4078e55976" />
-<img width="1906" height="862" alt="image" src="https://github.com/user-attachments/assets/fdd0a66e-dfdc-4208-89d8-0b7697293bff" />
-<img width="1882" height="861" alt="image" src="https://github.com/user-attachments/assets/f35db0e6-75ed-454a-ab89-4742edfe2064" />
 
 # Lingua Flow
 

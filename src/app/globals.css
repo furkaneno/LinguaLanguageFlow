@@ -16,12 +16,13 @@
 .snow-cap { display: none; position: absolute; left: 14px; right: 14px; bottom: 100%; margin-bottom: -3px; width: calc(100% - 28px); height: calc(var(--snow-cap, 0) * 1px); pointer-events: none; }
 [data-theme="winter"] .snow-cap { display: block; }
 
-/* Winter: the snow pile is light, so the page content sits on a dark plate (like the word cards) and stays readable. */
-[data-theme="winter"] main {
-  background: rgb(var(--c-bg) / 0.92);
-  box-shadow: 0 0 0 1px rgb(var(--c-line) / 0.9);
-  border-radius: 1.5rem;
-  width: calc(100% - 1rem);
-  margin-top: 0.75rem;
-  margin-bottom: 0.75rem;
+/* Winter: text that sits directly on the page (not inside a card, box or button) gets a small dark plate, so it stays readable over the snow. */
+[data-theme="winter"] main :is(h1, h2, h3, p, label, a, span):not([class*="bg-"]):not([class*="bg-"] *) {
+  background: rgb(var(--c-bg) / 0.88);
+  border-radius: 0.75rem;
+  padding: 0.1em 0.55em;
+  width: fit-content;
+  max-width: 100%;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
 }

@@ -45,9 +45,12 @@ export function spawnMeteor(w: number, h: number, rand: Rand = Math.random, angl
   const kind: MeteorKind = r < 0.62 ? "streak" : r < 0.88 || !allowFireball ? "faint" : "fireball";
   const a = angle ?? randomAngle(rand);
   let speed: number, life: number, lengthFactor: number, width: number, peak: number, sparkRate: number;
-  if (kind === "streak") { speed = between(rand, 700, 1500); life = between(rand, 0.5, 1.1); lengthFactor = between(rand, 0.16, 0.28); width = between(rand, 1.6, 2.8); peak = between(rand, 0.85, 1); sparkRate = rand() < 0.5 ? between(rand, 8, 16) : 0; }
-  else if (kind === "faint") { speed = between(rand, 500, 1200); life = between(rand, 0.4, 0.9); lengthFactor = between(rand, 0.14, 0.24); width = between(rand, 1.0, 1.5); peak = between(rand, 0.35, 0.6); sparkRate = 0; }
-  else { speed = between(rand, 220, 480); life = between(rand, 1.8, 3.4); lengthFactor = between(rand, 0.3, 0.45); width = between(rand, 3.5, 6); peak = 1; sparkRate = between(rand, 40, 60); }
+  if (kind === "streak") {
+    const cruiser = rand() < 0.4; // some drift slowly and stay on screen for several seconds
+    speed = cruiser ? between(rand, 260, 520) : between(rand, 700, 1400); life = cruiser ? between(rand, 2.2, 4.2) : between(rand, 0.7, 1.4);
+    lengthFactor = cruiser ? between(rand, 0.3, 0.5) : between(rand, 0.16, 0.28); width = between(rand, 1.6, 2.8); peak = between(rand, 0.85, 1); sparkRate = rand() < 0.5 ? between(rand, 8, 16) : 0; }
+  else if (kind === "faint") { speed = between(rand, 300, 900); life = between(rand, 0.8, 2.2); lengthFactor = between(rand, 0.18, 0.3); width = between(rand, 1.0, 1.5); peak = between(rand, 0.35, 0.6); sparkRate = 0; }
+  else { speed = between(rand, 140, 330); life = between(rand, 2.8, 5); lengthFactor = between(rand, 0.3, 0.45); width = between(rand, 3.5, 6); peak = 1; sparkRate = between(rand, 40, 60); }
   const color = kind === "fireball" && rand() < 0.6 ? WARM[Math.floor(rand() * WARM.length)]! : pickColor(rand);
   return {
     kind, x: rand() * w, y: rand() * h * 0.75, dx: Math.cos(a), dy: Math.sin(a), speed, life, age: 0,

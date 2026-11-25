@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { CheckCircle2, Lightbulb, LogOut, SkipForward, Volume2, type LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { LinkButton, Button } from "@/components/ui/button";
@@ -13,12 +13,13 @@ interface Props {
   init: SessionInit; languages: ClassLanguages; onRestart: () => void;
 }
 
-const prompts = (front: string, back: string): Record<string, string> => ({
-  english_ready: `Read the card aloud in ${front}.`,
+// The instruction for each step is shown once, above the card, so the "ready" states have no extra line here.
+const prompts = (): Record<string, string> => ({
+  english_ready: "",
   english_recording: "Listening… tap the button when you're done.",
   english_evaluating: "Checking what you said…",
   english_failed: "Not quite. Listen if you like, then try again.",
-  turkish_ready: `Now say the answer in ${back}.`,
+  turkish_ready: "",
   turkish_recording: "Listening… tap the button when you're done.",
   turkish_evaluating: "Checking your answer…",
   turkish_failed: "Not quite. Try again, or take a hint.",
@@ -30,7 +31,10 @@ const fmt = (ms: number) => { const s = Math.round(ms / 1000); return `${Math.fl
 export function StudyScreen({ uid, classId, className, cards, init, languages, onRestart }: Props) {
   const s = useStudySession(uid, classId, cards, init, languages);
   const frontName = LANGUAGES[languages.front].name, backName = LANGUAGES[languages.back].name;
-  const PROMPT = prompts(frontName, backName);
+  const PROMPT = prompts();
+  const { ctx, card, stage, last } = s;
+  const stepNumber = ctx.status.startsWith("turkish") || ctx.status === "card_completed" ? 2 : 1;
+  const stepText = stepNumber === 1 ? `Read it aloud in ${frontName}` : `Say the answer in ${backName}`;
   const [skipArmed, setSkipArmed] = useState(false);   // first tap arms, second tap skips
   const [hintVisible, setHintVisible] = useState(false); // stays on screen while you answer, until the next card
   useEffect(() => {
@@ -39,7 +43,6 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
     return () => clearTimeout(t);
   }, [skipArmed]);
   useEffect(() => { setSkipArmed(false); setHintVisible(false); }, [s.ctx.index]);
-  const { ctx, card, stage, last } = s;
   const back = `/classes/${classId}`;
 
   if (!s.support || ctx.status === "loading") return <p role="status" className="py-20 text-center text-ink-muted">Getting ready…</p>;
@@ -129,9 +132,10 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
       )}
 
       <div className="mt-6 flex flex-col items-center gap-5 text-center sm:mt-8">
-        <p className="rounded-full bg-blush px-4 py-1.5 text-sm font-medium">
-          {stage === "english" ? `Step 1 of 2: read it aloud in ${frontName}` : `Step 2 of 2: say the answer in ${backName}`}
-        </p>
+        <div className="flex items-center gap-3">
+          <span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand text-base font-bold text-on-brand">{stepNumber}</span>
+          <p className="text-lg font-semibold"><span className="sr-only">Step {stepNumber} of 2: </span>{stepText}</p>
+        </div>
         <div className="w-full rounded-xl2 border-2 border-brand bg-cream-surface px-6 py-5">
           <p lang={languages.front} className="font-display text-3xl leading-snug sm:text-5xl">{card?.englishText}</p>
         </div>
@@ -152,7 +156,7 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
           </div>
         )}
 
-        <p role="status" aria-live="polite" className="text-lg text-ink-muted">{PROMPT[ctx.status]}</p>
+        <p role="status" aria-live="polite" className={PROMPT[ctx.status] ? "text-lg text-ink-muted" : "sr-only"}>{PROMPT[ctx.status] || stepText}</p>
         {ctx.notice && <p role="alert" className="rounded-xl bg-danger px-4 py-3 text-sm"><strong>Problem: </strong>{ctx.notice}</p>}
 
         <div className="grid w-full max-w-sm grid-cols-[1fr_auto_1fr] items-center gap-3 sm:gap-5">

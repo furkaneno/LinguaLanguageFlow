@@ -38,7 +38,9 @@ describe("kinds, colours and directions", () => {
     const rand = seeded(4);
     const by = (k: string) => Array.from({ length: 1500 }, () => spawnMeteor(W, H, rand)).filter((m) => m.kind === k);
     const fire = by("fireball"), streak = by("streak"), faint = by("faint");
-    expect(Math.max(...fire.map((m) => m.speed))).toBeLessThan(Math.min(...streak.map((m) => m.speed)));
+    const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    expect(avg(fire.map((m) => m.speed))).toBeLessThan(avg(streak.map((m) => m.speed)));
+    expect(avg(fire.map((m) => m.life))).toBeGreaterThan(avg(streak.map((m) => m.life)));
     expect(Math.min(...fire.map((m) => m.width))).toBeGreaterThan(Math.max(...streak.map((m) => m.width)));
     expect(Math.max(...faint.map((m) => m.peak))).toBeLessThan(Math.min(...streak.map((m) => m.peak)));
     expect(fire.every((m) => m.sparkRate > 0)).toBe(true);
@@ -47,6 +49,33 @@ describe("kinds, colours and directions", () => {
   it("starts every meteor on screen", () => {
     const rand = seeded(5);
     for (let i = 0; i < 500; i++) { const m = spawnMeteor(W, H, rand); expect(m.x).toBeGreaterThanOrEqual(0); expect(m.x).toBeLessThanOrEqual(W); expect(m.y).toBeLessThanOrEqual(H * 0.75); }
+  });
+});
+
+describe("slow and long-lasting shooting stars", () => {
+  const sample = () => { const rand = seeded(30); return Array.from({ length: 3000 }, () => spawnMeteor(W, H, rand)); };
+  it("lets some drift slowly and stay on screen for several seconds, while others are quick", () => {
+    const streaks = sample().filter((m) => m.kind === "streak");
+    const slow = streaks.filter((m) => m.speed < 520), quick = streaks.filter((m) => m.speed > 700);
+    expect(slow.length).toBeGreaterThan(streaks.length * 0.3);
+    expect(quick.length).toBeGreaterThan(streaks.length * 0.5);
+    expect(Math.min(...slow.map((m) => m.life))).toBeGreaterThanOrEqual(2.2);
+    expect(Math.max(...quick.map((m) => m.life))).toBeLessThanOrEqual(1.4);
+  });
+  it("keeps the slow ones easy to follow: modest speed, a clearly visible tail", () => {
+    for (const m of sample().filter((m) => m.speed < 520)) {
+      expect(m.baseLength).toBeGreaterThan(70);
+      expect(m.speed * m.life).toBeGreaterThan(500); // they cross a good part of the screen
+    }
+  });
+  it("is slower overall than before: the fastest are still fast, but the average streak lives longer", () => {
+    const all = sample();
+    expect(all.filter((m) => m.life >= 2).length).toBeGreaterThan(all.length * 0.3);
+    expect(Math.max(...all.map((m) => m.speed))).toBeLessThanOrEqual(1400);
+    expect(Math.min(...all.map((m) => m.speed))).toBeGreaterThanOrEqual(140);
+  });
+  it("never lives longer than five seconds, so nothing lingers", () => {
+    expect(Math.max(...sample().map((m) => m.life))).toBeLessThanOrEqual(5);
   });
 });
 

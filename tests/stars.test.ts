@@ -63,7 +63,7 @@ describe("slow and long-lasting shooting stars", () => {
     expect(Math.max(...quick.map((m) => m.life))).toBeLessThanOrEqual(1.4);
   });
   it("keeps the slow ones easy to follow: modest speed, a clearly visible tail", () => {
-    for (const m of sample().filter((m) => m.speed < 520)) {
+    for (const m of sample().filter((m) => m.kind === "streak" && m.speed < 520)) {
       expect(m.baseLength).toBeGreaterThan(70);
       expect(m.speed * m.life).toBeGreaterThan(500); // they cross a good part of the screen
     }

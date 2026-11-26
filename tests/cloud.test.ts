@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  CloudSpeechRecognitionProvider, NO_SPEECH_MS, RECORDER_GRACE_MS, SHORT_END_MS,
+  CloudSpeechRecognitionProvider, GET_MEDIA_TIMEOUT_MS, NO_SPEECH_MS, RECORDER_GRACE_MS, SHORT_END_MS,
 } from "@/lib/speech/cloudRecognition";
 
 const level = { value: 0 };
@@ -195,5 +195,52 @@ describe("support checks", () => {
   it("needs a secure connection", async () => {
     vi.stubGlobal("window", { isSecureContext: false });
     await expect(make().listen(opts)).resolves.toEqual({ ok: false, error: "insecure_context" });
+  });
+});
+
+describe("when the microphone never arrives (a known iPhone problem)", () => {
+  const stream = () => ({ getTracks: () => [made.track] });
+  let release: (s: unknown) => void;
+  beforeEach(() => { getUserMedia = vi.fn(() => new Promise((resolve) => { release = resolve; })); });
+
+  it("gives up after a few seconds with a clear reason instead of waiting forever", async () => {
+    const done = make().listen(opts);
+    await settle(GET_MEDIA_TIMEOUT_MS + 50);
+    await expect(done).resolves.toEqual({ ok: false, error: "no_response" });
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+  it("releases the microphone if it turns up after we gave up", async () => {
+    const done = make().listen(opts);
+    await settle(GET_MEDIA_TIMEOUT_MS + 50);
+    await done;
+    release(stream()); await settle(0);
+    expect(made.track.stop).toHaveBeenCalled();
+  });
+  it("tapping stop works even before the microphone is ready, and nothing is sent", async () => {
+    const p = make();
+    const done = p.listen(opts);
+    p.stop();
+    release(stream()); await settle(0);
+    await expect(done).resolves.toEqual({ ok: false, error: "no_speech" });
+    expect(made.track.stop).toHaveBeenCalled();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+  it("leaving the page before the microphone is ready throws the attempt away", async () => {
+    const p = make();
+    const done = p.listen(opts);
+    p.abort();
+    release(stream()); await settle(0);
+    await expect(done).resolves.toEqual({ ok: false, error: "aborted" });
+    expect(made.track.stop).toHaveBeenCalled();
+  });
+  it("can record again right after a stuck attempt", async () => {
+    const p = make();
+    const stuck = p.listen(opts);
+    await settle(GET_MEDIA_TIMEOUT_MS + 50);
+    await stuck;
+    getUserMedia = vi.fn(async () => stream());
+    const again = make({ mediaDevices: { getUserMedia } });
+    await speakThenStaySilent(again.listen(opts));
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });

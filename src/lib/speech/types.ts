@@ -3,7 +3,7 @@ import type { ScoreResult } from "@/lib/text/similarity";
 
 export type SpeechErrorCode =
   | "unsupported" | "insecure_context" | "permission_denied" | "no_microphone" | "no_speech"
-  | "network" | "language_unsupported" | "aborted" | "busy" | "service_error" | "rate_limited" | "unknown";
+  | "network" | "language_unsupported" | "aborted" | "busy" | "service_error" | "rate_limited" | "no_response" | "unknown";
 
 export type RecognitionResult =
   | { ok: true; /** Recognizer hypotheses for the same audio, best first. */ alternatives: string[]; confidence: number | null; provider: string }

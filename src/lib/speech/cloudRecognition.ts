@@ -9,6 +9,8 @@ export const SHORT_END_MS = 1500;
 /** If the recorder never reports that it stopped, carry on with what we have after this long. */
 export const RECORDER_GRACE_MS = 1500;
 export const UPLOAD_TIMEOUT_MS = 20000;
+/** If the browser never hands over the microphone (it can happen on iPhone), give up after this long. */
+export const GET_MEDIA_TIMEOUT_MS = 8000;
 const SAMPLE_MS = 100;
 const MIME_CANDIDATES = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"];
 
@@ -69,6 +71,10 @@ export class CloudSpeechRecognitionProvider implements SpeechRecognitionProvider
     let stream: MediaStream | null = null;
     let audioCtx: AudioContext | null = null;
     let aborted = false;
+    let stopEarly = false;
+    // Tapping stop (or leaving) works even while we are still waiting for the microphone.
+    this.requestStop = () => { stopEarly = true; };
+    this.requestAbort = () => { aborted = true; stopEarly = true; };
     const cleanup = () => {
       stream?.getTracks().forEach((t) => { try { t.stop(); } catch { /* already stopped */ } }); // releases the microphone / iOS audio session
       stream = null;
@@ -79,9 +85,20 @@ export class CloudSpeechRecognitionProvider implements SpeechRecognitionProvider
     try {
       // Everything up to getUserMedia must run inside the user's tap: iOS only allows audio then.
       if (env.AudioCtx) { try { audioCtx = new env.AudioCtx(); void audioCtx.resume?.(); } catch { audioCtx = null; } }
+      const media = env.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      let waitTimer: ReturnType<typeof setTimeout> | undefined;
+      const timeout = new Promise<"timeout">((resolve) => { waitTimer = setTimeout(() => resolve("timeout"), GET_MEDIA_TIMEOUT_MS); });
       try {
-        stream = await env.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+        const got = await Promise.race([media, timeout]);
+        if (got === "timeout") {
+          void media.then((s) => s.getTracks().forEach((t) => t.stop()), () => {}); // release it if it ever arrives
+          return { ok: false, error: "no_response" };
+        }
+        stream = got;
       } catch (e) { return { ok: false, error: mapMediaError(e) }; }
+      finally { clearTimeout(waitTimer); }
+      if (aborted) return { ok: false, error: "aborted" };
+      if (stopEarly) return { ok: false, error: "no_speech" };
       void audioCtx?.resume?.();
 
       const mimeType = pickMime(env.Recorder);

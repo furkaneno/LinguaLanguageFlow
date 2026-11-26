@@ -15,7 +15,9 @@ import { isCloudTranscriptionEnabled } from "@/lib/speech/cloudStatus";
 import { WebSpeechRecognitionProvider } from "@/lib/speech/webSpeechRecognition";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { runAttempt, type Stage } from "@/lib/study/attempt";
-import { initialContext, studyReducer, type StudySnapshot } from "@/lib/study/machine";
+import { initialContext, studyReducer, type StudyEvent, type StudySnapshot } from "@/lib/study/machine";
+import { createGuard } from "@/lib/study/guard";
+import { speechErrorMessage } from "@/lib/speech/messages";
 import type { ScoreResult } from "@/lib/text/similarity";
 import type { CardDoc } from "@/types";
 
@@ -48,6 +50,10 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
   const recognizer = useRef<SpeechRecognitionProvider | null>(null);
   const synth = useRef<SpeechSynthesisProvider | null>(null);
   const busy = useRef(false);
+  const guard = useRef(createGuard());
+  const statusRef = useRef("loading");
+  const phaseRef = useRef<"listening" | "processing">("listening");
+  const hardCap = useRef(SPEECH.listenTimeoutMs + 25000);
   const stats = useRef<CardStats>(emptyStats());
   const completionWritten = useRef(new Set<string>());
   const lastPersisted = useRef("");
@@ -154,21 +160,54 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
 
   const stage: Stage = ctx.status.startsWith("turkish") || ctx.status === "card_completed" ? "turkish" : "english";
 
+  useEffect(() => { statusRef.current = ctx.status; }, [ctx.status]);
+
+  /** Safety net: if the microphone engine stops answering, give up on this attempt so the screen is never stuck. */
+  const abandon = useCallback(() => {
+    guard.current.invalidate(); // whatever the stuck attempt does later is ignored
+    recognizer.current?.abort();
+    busy.current = false; phaseRef.current = "listening";
+    setHeard(""); setLevel(0); setPhase("listening");
+    dispatch({ type: "CANCEL_RECORDING", notice: speechErrorMessage("no_response", isIOS()) });
+  }, []);
+
+  // A recording can never last longer than its limit plus the time to send it; after that the attempt is abandoned.
+  useEffect(() => {
+    if (ctx.status !== "english_recording" && ctx.status !== "turkish_recording") return;
+    const t = setTimeout(abandon, hardCap.current);
+    return () => clearTimeout(t);
+  }, [ctx.status, abandon]);
+
   const mic = useCallback(async () => {
-    if (ctx.status === "english_recording" || ctx.status === "turkish_recording") { getRecognizer().stop(); return; }
+    if (ctx.status === "english_recording" || ctx.status === "turkish_recording") {
+      getRecognizer().stop();
+      // If tapping stop does not end the recording within a few seconds (and nothing is being sent), give up on it.
+      setTimeout(() => {
+        const recording = statusRef.current === "english_recording" || statusRef.current === "turkish_recording";
+        if (recording && phaseRef.current !== "processing") abandon();
+      }, 3000);
+      return;
+    }
     const ready = ["english_ready", "english_failed", "turkish_ready", "turkish_failed"].includes(ctx.status);
     if (!ready || busy.current || !card) return;
     busy.current = true;
+    const token = guard.current.begin();
+    const live = (fn: () => void) => { if (guard.current.isCurrent(token)) fn(); };
+    phaseRef.current = "listening";
     getSynth().cancel(); setSpeaking(false); setLast(null); setSaveError(null); setHeard(""); setLevel(0); setPhase("listening");
     const target = stage === "english" ? card.englishText : card.turkishMeaning; // front side, then back side
     const code = stage === "english" ? languages.front : languages.back;
     const longForm = target.trim().split(/\s+/).length >= SPEECH.longFormWords;
+    hardCap.current = (longForm ? SPEECH.longTimeoutMs : SPEECH.listenTimeoutMs) + 25000;
+    const guardedDispatch = (e: StudyEvent) => live(() => dispatch(e));
     try {
       const outcome = await runAttempt(stage, {
-        recognizer: getRecognizer(), dispatch, lang: LANGUAGES[code].speech, longForm, onInterim: setHeard, onLevel: setLevel, onPhase: setPhase, ...(noPassMark ? { passMark: 0 } : {}),
+        recognizer: getRecognizer(), dispatch: guardedDispatch, lang: LANGUAGES[code].speech, longForm,
+        onInterim: (t) => live(() => setHeard(t)), onLevel: (l) => live(() => setLevel(l)),
+        onPhase: (p) => live(() => { phaseRef.current = p; setPhase(p); }), ...(noPassMark ? { passMark: 0 } : {}),
         assess: (alts) => (stage === "english" ? recognitionMatchAssessor.assess(target, alts, code) : lexicalTurkishEvaluator.evaluate(target, alts, code)),
       });
-      if (outcome.kind !== "scored") return;
+      if (!guard.current.isCurrent(token) || outcome.kind !== "scored") return; // abandoned attempts change nothing
       const s = stats.current;
       if (stage === "english") { s.englishAttempts++; s.lastEnglishScore = outcome.result.score; }
       else { s.turkishAttempts++; s.lastTurkishScore = outcome.result.score; }
@@ -177,8 +216,10 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
         cardId: card.id, stage, recognizedText: outcome.result.recognizedText, score: outcome.result.score ?? 0,
         scoreType: outcome.result.scoreType, passed: outcome.passed, provider: outcome.provider,
       }).catch(reportSaveError);
-    } finally { busy.current = false; setHeard(""); setLevel(0); setPhase("listening"); }
-  }, [ctx.status, card, stage, uid, init.sessionId, languages.front, languages.back, noPassMark, reportSaveError]);
+    } finally {
+      if (guard.current.isCurrent(token)) { busy.current = false; phaseRef.current = "listening"; setHeard(""); setLevel(0); setPhase("listening"); }
+    }
+  }, [ctx.status, card, stage, uid, init.sessionId, languages.front, languages.back, noPassMark, abandon, reportSaveError]);
 
   const skip = useCallback(() => {
     if (busy.current) return;

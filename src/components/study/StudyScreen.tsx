@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { CheckCircle2, Lightbulb, LogOut, SkipForward, Volume2, type LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { LinkButton, Button } from "@/components/ui/button";
@@ -32,9 +32,6 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
   const s = useStudySession(uid, classId, cards, init, languages);
   const frontName = LANGUAGES[languages.front].name, backName = LANGUAGES[languages.back].name;
   const PROMPT = prompts();
-  const { ctx, card, stage, last } = s;
-  const stepNumber = ctx.status.startsWith("turkish") || ctx.status === "card_completed" ? 2 : 1;
-  const stepText = stepNumber === 1 ? `Read it aloud in ${frontName}` : `Say the answer in ${backName}`;
   const [skipArmed, setSkipArmed] = useState(false);   // first tap arms, second tap skips
   const [hintVisible, setHintVisible] = useState(false); // stays on screen while you answer, until the next card
   useEffect(() => {
@@ -43,6 +40,9 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
     return () => clearTimeout(t);
   }, [skipArmed]);
   useEffect(() => { setSkipArmed(false); setHintVisible(false); }, [s.ctx.index]);
+  const { ctx, card, stage, last } = s;
+  const stepNumber = ctx.status.startsWith("turkish") || ctx.status === "card_completed" ? 2 : 1;
+  const stepText = stepNumber === 1 ? `Read it aloud in ${frontName}` : `Say the answer in ${backName}`;
   const back = `/classes/${classId}`;
 
   if (!s.support || ctx.status === "loading") return <p role="status" className="py-20 text-center text-ink-muted">Getting ready…</p>;
@@ -101,7 +101,6 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
   const recording = ctx.status === "english_recording" || ctx.status === "turkish_recording";
   const evaluating = ctx.status === "english_evaluating" || ctx.status === "turkish_evaluating";
   const done = ctx.status === "card_completed";
-  const turkishFailed = ctx.status === "turkish_failed";
   const pct = Math.round((Math.min(ctx.index + (done ? 1 : 0), ctx.cardIds.length) / ctx.cardIds.length) * 100);
   const threshold = stage === "english" ? s.thresholds.english : s.thresholds.turkish;
 
@@ -110,7 +109,7 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
     ? <SideButton icon={Volume2} label={s.speaking ? "Playing" : "Listen"} onClick={() => void s.listen()}
         disabled={recording || evaluating || s.speaking || s.voiceMissing || done} />
     : <SideButton icon={Lightbulb} label={hintVisible ? "Hide" : "Hint"} onClick={() => setHintVisible((v) => !v)}
-        disabled={recording || evaluating || done || (!turkishFailed && !hintVisible)} />;
+        disabled={recording || evaluating || done} />;
   const right = <SideButton icon={SkipForward} label={skipArmed ? "Sure?" : "Skip"} danger={skipArmed} disabled={recording || evaluating || done}
     onClick={() => { if (skipArmed) { setSkipArmed(false); s.skip(); } else setSkipArmed(true); }} />;
 

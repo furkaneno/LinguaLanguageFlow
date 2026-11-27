@@ -35,10 +35,9 @@ describe("attempt guard", () => {
 });
 
 describe("the message when the microphone stops responding", () => {
-  it("tells everyone to try again, and gives iPhone users the extra steps", () => {
+  it("tells everyone to try again", () => {
     expect(speechErrorMessage("no_response")).toMatch(/try again/i);
     expect(speechErrorMessage("no_response")).not.toMatch(/iPhone/);
-    expect(speechErrorMessage("no_response", true)).toMatch(/Dictation/);
-    expect(speechErrorMessage("no_response", true)).toMatch(/reload/i);
+    expect(speechErrorMessage("no_response", true)).not.toMatch(/Dictation|cloud/);
   });
 });

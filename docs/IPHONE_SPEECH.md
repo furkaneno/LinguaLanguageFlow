@@ -1,31 +1,32 @@
-# Speech on iPhone and iPad
+# Speech recognition on iPhone and iPad
 
-Safari's built-in speech recognizer is unreliable: after audio playback it can stay in a "listening" state that never reports anything,
-and it ends sessions early. Lingua Flow therefore has two engines:
+Safari's built-in speech recognizer is unreliable: it can stop hearing after the first recording, ignore some languages
+(Turkish in particular), or stall. Lingua Flow cannot fix that engine, so on iPhone/iPad it can use **cloud transcription**
+instead. The app records the audio, sends it to a speech-to-text service, and scores the text it gets back.
 
-| Device | Engine | What happens |
-|---|---|---|
-| Android, Windows, Mac | Browser recognizer (Web Speech API) | Audio is processed by the browser's own speech service. |
-| iPhone, iPad | **Cloud transcription**, when switched on | The phone records the microphone and sends the recording to `/api/transcribe`, which has OpenAI transcribe it. |
-| iPhone, iPad without the key | Browser recognizer | Works as far as Safari allows. |
+## Turn it on (free option: Groq)
 
-Both engines can never freeze the screen: if the browser stops answering, the app gives up after a few seconds with a clear message.
+1. Go to https://console.groq.com and create an account (a free tier exists, no card needed at the time of writing).
+2. API Keys, Create API Key. Copy it (it starts with `gsk_`).
+3. In Vercel: your project, Settings, Environment Variables. Add `GROQ_API_KEY` with that value (Production, and Preview if you use it). Save.
+4. Redeploy: Deployments, the latest one, the three dots, Redeploy. (New variables only apply to new deployments.)
+5. Check: open `https://YOUR-SITE.vercel.app/api/transcribe` in a browser. It must show `{"enabled":true}`.
+6. On the iPhone, close the site completely and open it again. While recording you now see a level bar, and after you
+   stop it says "Transcribing…". If you see "Hearing: …" text instead, the browser engine is still being used.
 
-## Turning cloud transcription on
-1. Create an OpenAI API key (platform.openai.com) and add a payment method. Set a monthly spending limit there.
-2. In Vercel: Project, Settings, Environment Variables. Add `OPENAI_API_KEY` (Production). Optionally add `TRANSCRIBE_MODEL`.
-3. Redeploy. Open the study screen on an iPhone: it now shows a level bar and "Transcribing…".
+Paid alternative: set `OPENAI_API_KEY` instead (model `gpt-4o-mini-transcribe`). If both keys are set, OpenAI is used unless
+`TRANSCRIBE_PROVIDER=groq`. `TRANSCRIBE_MODEL` overrides the model name if a service renames or retires its default.
 
-Without `OPENAI_API_KEY` nothing changes and nothing is sent anywhere.
+## What is sent where
 
-## Cost, privacy, limits
-- Transcription is billed per minute of audio by OpenAI; check the current price before enabling. Silence is never uploaded.
-- Only signed-in users can use the route, at most 20 recordings per minute each (best effort on serverless).
-- Recordings are passed through and never stored or logged by Lingua Flow. OpenAI's own data policy applies to what it receives.
-- The expected card text is never sent along, so it cannot influence the transcription.
-- Update your privacy policy: on iPhone/iPad the audio is processed by OpenAI.
+- Only a recording the user just made, only for the signed-in user, and never stored or logged by Lingua Flow.
+- The text of the card is never sent, so it cannot bias the result. Silence is not uploaded.
+- The audio goes to the service you chose (Groq or OpenAI). Mention that in your privacy policy.
+- Limits: the route allows 20 recordings per user per minute. Free tiers have their own limits (Groq's free tier was
+  about 20 requests per minute and 2,000 per day when this was written; check console.groq.com for current numbers).
 
-## If it still misbehaves on an iPhone
-- Safari: Settings, Safari, Microphone: Allow (or Ask).
-- Use Safari, not an in-app browser (Instagram, WhatsApp links).
-- Without the key: Settings, General, Keyboard, Enable Dictation must be on.
+## If it still misbehaves
+
+- The screen can no longer stay stuck on "recording": if the engine stops answering, the attempt is abandoned and a
+  message appears. Tap the microphone to try again.
+- Without a key, iPhone uses Safari's engine and the problems above can happen. That is the engine, not the app.

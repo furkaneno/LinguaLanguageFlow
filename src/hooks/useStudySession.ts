@@ -165,10 +165,11 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
   /** Safety net: if the microphone engine stops answering, give up on this attempt so the screen is never stuck. */
   const abandon = useCallback(() => {
     guard.current.invalidate(); // whatever the stuck attempt does later is ignored
+    const detail = isIOS() ? recognizer.current?.diagnostics?.() : "";
     recognizer.current?.abort();
     busy.current = false; phaseRef.current = "listening";
     setHeard(""); setLevel(0); setPhase("listening");
-    dispatch({ type: "CANCEL_RECORDING", notice: speechErrorMessage("no_response", isIOS()) });
+    dispatch({ type: "CANCEL_RECORDING", notice: speechErrorMessage("no_response", isIOS()) + (detail ? ` (Details: ${detail})` : "") });
   }, []);
 
   // A recording can never last longer than its limit plus the time to send it; after that the attempt is abandoned.

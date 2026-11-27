@@ -1,7 +1,7 @@
 import { ENGLISH_PASS_THRESHOLD, TURKISH_PASS_THRESHOLD, SPEECH } from "@/config/app";
 import { speechErrorMessage } from "@/lib/speech/messages";
 import { isIOS } from "@/lib/speech/platform";
-import type { SpeechErrorCode, SpeechRecognitionProvider } from "@/lib/speech/types";
+import type { RecognitionResult, SpeechErrorCode, SpeechRecognitionProvider } from "@/lib/speech/types";
 import { passes, type ScoreResult } from "@/lib/text/similarity";
 import type { StudyEvent } from "./machine";
 
@@ -32,15 +32,21 @@ interface Deps {
 /** One listen -> score cycle, driving the state machine. Never invents a score. */
 export async function runAttempt(stage: Stage, { recognizer, assess, dispatch, lang, longForm = false, passMark, onInterim, onLevel, onPhase }: Deps): Promise<AttemptOutcome> {
   dispatch({ type: "START_RECORDING" });
-  const heard = await recognizer.listen({
-    lang,
-    timeoutMs: longForm ? SPEECH.longTimeoutMs : SPEECH.listenTimeoutMs,
-    longForm, silenceMs: SPEECH.longSilenceMs, ...(onInterim ? { onInterim } : {}),
-    ...(onLevel ? { onLevel } : {}), ...(onPhase ? { onPhase } : {}),
-  });
+  let heard: RecognitionResult;
+  try {
+    heard = await recognizer.listen({
+      lang,
+      timeoutMs: longForm ? SPEECH.longTimeoutMs : SPEECH.listenTimeoutMs,
+      longForm, silenceMs: SPEECH.longSilenceMs, ...(onInterim ? { onInterim } : {}),
+      ...(onLevel ? { onLevel } : {}), ...(onPhase ? { onPhase } : {}),
+    });
+  } catch {
+    heard = { ok: false, error: "unknown" }; // an engine that throws must never leave the screen stuck on "recording"
+  }
   if (!heard.ok) {
     if (heard.error === "aborted") return { kind: "cancelled", stage };
-    dispatch({ type: "CANCEL_RECORDING", notice: speechErrorMessage(heard.error, isIOS()) });
+    const detail = isIOS() ? recognizer.diagnostics?.() : "";
+    dispatch({ type: "CANCEL_RECORDING", notice: speechErrorMessage(heard.error, isIOS()) + (detail ? ` (Details: ${detail})` : "") });
     return { kind: "error", stage, error: heard.error };
   }
   dispatch({ type: "STOP_RECORDING" });

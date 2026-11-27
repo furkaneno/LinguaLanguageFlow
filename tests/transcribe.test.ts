@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET, POST } from "@/app/api/transcribe/route";
 import {
-  allowRequest, DEFAULT_MODEL, MAX_AUDIO_BYTES, RATE_LIMIT, resetRateLimit, toIsoLanguage, transcribeWithOpenAI,
-  TranscriptionError, verifyFirebaseToken,
+  allowRequest, DEFAULT_MODEL, MAX_AUDIO_BYTES, PROVIDER_MODELS, PROVIDER_URLS, RATE_LIMIT, resetRateLimit, resolveProvider, toIsoLanguage,
+  transcribeAudio, transcribeWithOpenAI, TranscriptionError, verifyFirebaseToken,
 } from "@/lib/transcribe/server";
 
 const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200 });
@@ -59,6 +59,42 @@ describe("helpers", () => {
     await expect(transcribeWithOpenAI(new Blob(["x"]), "a", "en", { apiKey: "k", fetchImpl: (async () => status(429)) as never })).rejects.toMatchObject({ status: 429 });
     await expect(transcribeWithOpenAI(new Blob(["x"]), "a", "en", { apiKey: "k", fetchImpl: (async () => status(500)) as never })).rejects.toBeInstanceOf(TranscriptionError);
     await expect(transcribeWithOpenAI(new Blob(["x"]), "a", "en", { apiKey: "k", fetchImpl: (async () => ok({})) as never })).resolves.toBe("");
+  });
+});
+
+describe("choosing the speech service", () => {
+  it("is off without a key (empty values count as no key)", () => {
+    expect(resolveProvider({})).toBeNull();
+    expect(resolveProvider({ OPENAI_API_KEY: "", GROQ_API_KEY: "" })).toBeNull();
+  });
+  it("uses Groq, the free option, when only a Groq key is set", () => {
+    expect(resolveProvider({ GROQ_API_KEY: "gsk" })).toEqual({ provider: "groq", apiKey: "gsk", model: "whisper-large-v3-turbo", url: PROVIDER_URLS.groq });
+    expect(PROVIDER_URLS.groq).toBe("https://api.groq.com/openai/v1/audio/transcriptions");
+  });
+  it("uses OpenAI when only an OpenAI key is set, as before", () => {
+    expect(resolveProvider({ OPENAI_API_KEY: "sk" })).toEqual({ provider: "openai", apiKey: "sk", model: DEFAULT_MODEL, url: PROVIDER_URLS.openai });
+  });
+  it("prefers OpenAI when both exist, and Groq when asked", () => {
+    expect(resolveProvider({ OPENAI_API_KEY: "sk", GROQ_API_KEY: "gsk" })?.provider).toBe("openai");
+    expect(resolveProvider({ OPENAI_API_KEY: "sk", GROQ_API_KEY: "gsk", TRANSCRIBE_PROVIDER: " Groq " })?.provider).toBe("groq");
+  });
+  it("ignores a provider choice whose key is missing", () => {
+    expect(resolveProvider({ OPENAI_API_KEY: "sk", TRANSCRIBE_PROVIDER: "groq" })?.provider).toBe("openai");
+    expect(resolveProvider({ GROQ_API_KEY: "gsk", TRANSCRIBE_PROVIDER: "openai" })?.provider).toBe("groq");
+  });
+  it("lets TRANSCRIBE_MODEL override the default model", () => {
+    expect(resolveProvider({ GROQ_API_KEY: "gsk", TRANSCRIBE_MODEL: "whisper-large-v3" })?.model).toBe("whisper-large-v3");
+    expect(PROVIDER_MODELS.openai).toBe(DEFAULT_MODEL);
+  });
+  it("sends the recording to the chosen service with its key", async () => {
+    const f = vi.fn(async () => ok({ text: " merhaba " }));
+    const cfg = resolveProvider({ GROQ_API_KEY: "gsk" })!;
+    await expect(transcribeAudio(new Blob(["x"]), "speech.m4a", "tr", cfg, f as never)).resolves.toBe("merhaba");
+    const [url, init] = f.mock.calls[0] as unknown as [string, { headers: Record<string, string>; body: FormData }];
+    expect(url).toBe(PROVIDER_URLS.groq);
+    expect(init.headers.Authorization).toBe("Bearer gsk");
+    expect(init.body.get("model")).toBe("whisper-large-v3-turbo");
+    expect(init.body.get("prompt")).toBeNull(); // the expected text is never sent
   });
 });
 
@@ -120,6 +156,34 @@ describe("the /api/transcribe route", () => {
     process.env.TRANSCRIBE_MODEL = "whisper-1";
     await POST(request());
     expect(((upstream.mock.calls[0]![1] as { body: FormData }).body).get("model")).toBe("whisper-1");
+  });
+  describe("with a Groq key", () => {
+    const keep = { g: process.env.GROQ_API_KEY, p: process.env.TRANSCRIBE_PROVIDER };
+    afterEach(() => {
+      for (const [k, v] of [["GROQ_API_KEY", keep.g], ["TRANSCRIBE_PROVIDER", keep.p]] as const) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
+    });
+    it("works with only a Groq key and calls Groq with its own model", async () => {
+      delete process.env.OPENAI_API_KEY; process.env.GROQ_API_KEY = "gsk-test";
+      expect(await (await GET()).json()).toEqual({ enabled: true });
+      const res = await POST(request({ lang: "tr-TR" }));
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({ text: "merhaba dünya" });
+      const [url, init] = upstream.mock.calls[0] as unknown as [string, { body: FormData; headers: Record<string, string> }];
+      expect(url).toBe("https://api.groq.com/openai/v1/audio/transcriptions");
+      expect(init.headers.Authorization).toBe("Bearer gsk-test");
+      expect(init.body.get("model")).toBe("whisper-large-v3-turbo");
+      expect(init.body.get("language")).toBe("tr");
+    });
+    it("still needs a signed-in user", async () => {
+      delete process.env.OPENAI_API_KEY; process.env.GROQ_API_KEY = "gsk-test";
+      expect((await POST(request({ token: null }))).status).toBe(401);
+      expect(upstream).not.toHaveBeenCalled();
+    });
+    it("uses Groq when both keys exist and it is asked for", async () => {
+      process.env.GROQ_API_KEY = "gsk-test"; process.env.TRANSCRIBE_PROVIDER = "groq";
+      await POST(request());
+      expect(String(upstream.mock.calls[0]![0])).toContain("api.groq.com");
+    });
   });
   it("rejects bad input before spending anything", async () => {
     expect((await POST(request({ raw: true }))).status).toBe(400);

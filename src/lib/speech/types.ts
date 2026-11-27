@@ -29,6 +29,8 @@ export interface SpeechRecognitionProvider {
   stop(): void;
   /** Cancel capture and discard the result. */
   abort(): void;
+  /** A short trace of what the engine did (events and timings), to help find out why a recording failed. */
+  diagnostics?(): string;
 }
 
 export interface SpeechSynthesisProvider {

@@ -63,8 +63,12 @@ export class WebSpeechRecognitionProvider implements SpeechRecognitionProvider {
   private active: SRInstance | null = null;
   private requestStop: (() => void) | null = null;
   private requestAbort: (() => void) | null = null;
+  private trace: string[] = [];
+  private traceStart = 0;
 
   isSupported() { return getCtor() !== undefined; }
+  /** What the engine did during the latest recording, e.g. "start 0.0s › audiostart 0.1s › error:no-speech 7.0s › end 7.0s". */
+  diagnostics() { return this.trace.join(" › "); }
 
   listen({ lang, timeoutMs, longForm = false, silenceMs = 3500, onInterim }: ListenOptions): Promise<RecognitionResult> {
     const Ctor = getCtor();
@@ -75,6 +79,14 @@ export class WebSpeechRecognitionProvider implements SpeechRecognitionProvider {
     const ios = isIOS();
     const chain = longForm && ios;
     const quietMs = longForm ? silenceMs : SHORT_QUIET_MS;
+
+    this.trace = []; this.traceStart = Date.now();
+    const log = (name: string) => {
+      if (this.trace.length >= 40) return;
+      if (name === "result" && this.trace[this.trace.length - 1]?.startsWith("result")) return; // one entry per run of results
+      this.trace.push(`${name} ${((Date.now() - this.traceStart) / 1000).toFixed(1)}s`);
+    };
+    log(`listen ${lang}${ios ? " ios" : ""}`);
 
     return new Promise((resolve) => {
       let current: SRInstance | null = null;
@@ -101,9 +113,9 @@ export class WebSpeechRecognitionProvider implements SpeechRecognitionProvider {
         resolve(r);
       };
       const stop = () => {
-        stopRequested = true;
+        stopRequested = true; log("stop");
         clearTimeout(force);
-        force = setTimeout(() => finish(compose() ?? { ok: false, error: lastError ?? "no_speech" }), STOP_GRACE_MS); // armed before stop() on purpose
+        force = setTimeout(() => { log("no end event, forced"); finish(compose() ?? { ok: false, error: lastError ?? "no_speech" }); }, STOP_GRACE_MS); // armed before stop() on purpose
         try { current?.stop(); } catch { /* already ended */ }
       };
       const overall = setTimeout(stop, timeoutMs);
@@ -117,17 +129,22 @@ export class WebSpeechRecognitionProvider implements SpeechRecognitionProvider {
         rec.continuous = longForm && !ios;   // iOS: no continuous mode
         rec.interimResults = true;           // iOS may never send a final result, so interim text is used too
         rec.maxAlternatives = 3;
+        for (const name of ["start", "audiostart", "soundstart", "speechstart", "speechend", "soundend", "audioend", "nomatch"]) {
+          (rec as unknown as Record<string, unknown>)[`on${name}`] = () => log(name);
+        }
 
         rec.onresult = (e) => {
           const r = readResults(e.results);
           if (!r) return;
+          log("result");
           latest = r;
           onInterim?.(compose()?.alternatives[0] ?? "");
           clearTimeout(quiet);
           quiet = setTimeout(stop, quietMs);
         };
-        rec.onerror = (e) => { sessionError = mapError(e.error); lastError = sessionError; };
+        rec.onerror = (e) => { sessionError = mapError(e.error); lastError = sessionError; log(`error:${e.error}`); };
         rec.onend = () => {
+          log("end");
           if (settled) return;
           if (aborted) return finish({ ok: false, error: "aborted" });
           // iPhone: the session ended on a pause while the user is still within the quiet window, so keep listening.
@@ -148,7 +165,7 @@ export class WebSpeechRecognitionProvider implements SpeechRecognitionProvider {
         setTimeout(() => finish({ ok: false, error: "aborted" }), 300); // safety net if the browser never fires onend
       };
       startSession(false); // runs synchronously inside the tap, which iOS requires
-      noResponse = setTimeout(() => { if (!latest && !committed) stop(); }, longForm ? NO_RESPONSE_MS * 2 : NO_RESPONSE_MS);
+      noResponse = setTimeout(() => { if (!latest && !committed) { log("nothing heard, stopping"); stop(); } }, longForm ? NO_RESPONSE_MS * 2 : NO_RESPONSE_MS);
     });
   }
 

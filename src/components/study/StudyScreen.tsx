@@ -187,10 +187,9 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
         {ctx.status === "english_ready" && ctx.attempts === 0 && init.baseAttempts === 0 && (
           <p className="max-w-sm text-sm text-ink-muted">
             {s.support.engine === "cloud"
-              ? "Your browser will ask to use the microphone. On iPhone each recording is sent to a transcription service (OpenAI) to turn it into text. Lingua Flow doesn't keep it."
+              ? "Your browser will ask to use the microphone. On iPhone each recording is sent to a transcription service to turn it into text. Lingua Flow doesn't keep it."
               : <>
                   Your browser will ask to use the microphone. Lingua Flow doesn&apos;t save audio; your browser&apos;s speech service processes it to recognize what you say.
-                  {s.support.ios && " On iPhone, Dictation must be on: Settings → General → Keyboard → Enable Dictation."}
                 </>}
           </p>
         )}

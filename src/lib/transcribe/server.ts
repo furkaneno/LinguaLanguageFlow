@@ -41,20 +41,47 @@ export class TranscriptionError extends Error {
   constructor(readonly status: number) { super(`Transcription failed (${status})`); this.name = "TranscriptionError"; }
 }
 
-/** Sends one recording to OpenAI. The expected text is deliberately NOT sent as a hint, so it can't bias the result. */
-export async function transcribeWithOpenAI(
+export type TranscribeProvider = "openai" | "groq";
+export interface ProviderConfig { provider: TranscribeProvider; apiKey: string; model: string; url: string }
+export const PROVIDER_URLS: Record<TranscribeProvider, string> = {
+  openai: "https://api.openai.com/v1/audio/transcriptions",
+  groq: "https://api.groq.com/openai/v1/audio/transcriptions",
+};
+export const PROVIDER_MODELS: Record<TranscribeProvider, string> = { openai: DEFAULT_MODEL, groq: "whisper-large-v3-turbo" };
+
+/**
+ * Picks the speech-to-text service from the environment: set GROQ_API_KEY (free tier available) or OPENAI_API_KEY.
+ * If both are set, OpenAI is used unless TRANSCRIBE_PROVIDER says "groq". Returns null when no key is set (feature off).
+ */
+export function resolveProvider(env: Record<string, string | undefined>): ProviderConfig | null {
+  const keys: Record<TranscribeProvider, string | undefined> = { openai: env.OPENAI_API_KEY || undefined, groq: env.GROQ_API_KEY || undefined };
+  const wanted = env.TRANSCRIBE_PROVIDER?.trim().toLowerCase();
+  const provider: TranscribeProvider | null =
+    wanted === "groq" && keys.groq ? "groq" : wanted === "openai" && keys.openai ? "openai" : keys.openai ? "openai" : keys.groq ? "groq" : null;
+  if (!provider) return null;
+  return { provider, apiKey: keys[provider]!, model: env.TRANSCRIBE_MODEL || PROVIDER_MODELS[provider], url: PROVIDER_URLS[provider] };
+}
+
+/** Sends one recording to the chosen service. The expected text is deliberately NOT sent as a hint, so it can't bias the result. */
+export async function transcribeAudio(
   audio: Blob, filename: string, language: string,
-  opts: { apiKey: string; model?: string | undefined; fetchImpl?: typeof fetch },
+  cfg: ProviderConfig, fetchImpl: typeof fetch = fetch,
 ): Promise<string> {
   const form = new FormData();
   form.append("file", audio, filename);
-  form.append("model", opts.model || DEFAULT_MODEL);
+  form.append("model", cfg.model);
   form.append("language", language);
   form.append("response_format", "json");
-  const res = await (opts.fetchImpl ?? fetch)("https://api.openai.com/v1/audio/transcriptions", {
-    method: "POST", headers: { Authorization: `Bearer ${opts.apiKey}` }, body: form,
-  });
+  const res = await fetchImpl(cfg.url, { method: "POST", headers: { Authorization: `Bearer ${cfg.apiKey}` }, body: form });
   if (!res.ok) throw new TranscriptionError(res.status === 429 ? 429 : 502);
   const data = (await res.json()) as { text?: unknown };
   return typeof data.text === "string" ? data.text.trim() : "";
+}
+
+/** OpenAI-only form, kept for callers that pass a key and model directly. */
+export function transcribeWithOpenAI(
+  audio: Blob, filename: string, language: string,
+  opts: { apiKey: string; model?: string | undefined; fetchImpl?: typeof fetch },
+): Promise<string> {
+  return transcribeAudio(audio, filename, language, { provider: "openai", apiKey: opts.apiKey, model: opts.model || DEFAULT_MODEL, url: PROVIDER_URLS.openai }, opts.fetchImpl);
 }

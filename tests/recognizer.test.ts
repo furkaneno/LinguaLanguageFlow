@@ -235,10 +235,11 @@ describe("platform and messages", () => {
     expect(isIOS()).toBe(false);
   });
   it("adds iPhone-specific setup help only on iPhone", () => {
-    expect(speechErrorMessage("permission_denied", true)).toMatch(/Enable Dictation/);
-    expect(speechErrorMessage("permission_denied", false)).not.toMatch(/Dictation/);
-    expect(speechErrorMessage("no_speech", true)).toMatch(/Dictation/);
-    expect(speechErrorMessage("no_speech")).not.toMatch(/Dictation/);
+    expect(speechErrorMessage("permission_denied", true)).toMatch(/Settings → Safari → Microphone/);
+    expect(speechErrorMessage("permission_denied", false)).not.toMatch(/Safari/);
+    expect(speechErrorMessage("no_speech", true)).toMatch(/hold the phone close/);
+    expect(speechErrorMessage("no_speech")).not.toMatch(/hold the phone close/);
+    for (const code of ["permission_denied", "no_speech", "no_response"] as const) expect(speechErrorMessage(code, true)).not.toMatch(/Dictation/);
     expect(speechErrorMessage("unsupported", true)).toMatch(/Safari/);
   });
 });

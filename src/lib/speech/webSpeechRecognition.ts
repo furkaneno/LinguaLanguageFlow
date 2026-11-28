@@ -70,7 +70,7 @@ export class WebSpeechRecognitionProvider implements SpeechRecognitionProvider {
   /** What the engine did during the latest recording, e.g. "start 0.0s › audiostart 0.1s › error:no-speech 7.0s › end 7.0s". */
   diagnostics() { return this.trace.join(" › "); }
 
-  listen({ lang, timeoutMs, longForm = false, silenceMs = 3500, onInterim }: ListenOptions): Promise<RecognitionResult> {
+  listen({ lang, timeoutMs, longForm = false, silenceMs = 3500, onInterim, onPhase }: ListenOptions): Promise<RecognitionResult> {
     const Ctor = getCtor();
     if (!Ctor) return Promise.resolve({ ok: false, error: "unsupported" });
     if (!window.isSecureContext) return Promise.resolve({ ok: false, error: "insecure_context" });
@@ -95,6 +95,10 @@ export class WebSpeechRecognitionProvider implements SpeechRecognitionProvider {
       let latest: { alternatives: string[]; confidence: number | null } | null = null; // this session's text
       let lastError: SpeechErrorCode | null = null;
       let sessions = 0;
+      let ended = false;                                    // the current session reported its end
+      let readyTimer: ReturnType<typeof setTimeout> | undefined;
+      let ready = false;
+      const markReady = () => { if (ready) return; ready = true; clearTimeout(readyTimer); onPhase?.("listening"); };
       let quiet: ReturnType<typeof setTimeout> | undefined;
       let force: ReturnType<typeof setTimeout> | undefined;
       let noResponse: ReturnType<typeof setTimeout> | undefined;
@@ -108,7 +112,13 @@ export class WebSpeechRecognitionProvider implements SpeechRecognitionProvider {
       const finish = (r: RecognitionResult) => {
         if (settled) return;
         settled = true;
-        clearTimeout(overall); clearTimeout(quiet); clearTimeout(force); clearTimeout(noResponse);
+        clearTimeout(overall); clearTimeout(quiet); clearTimeout(force); clearTimeout(noResponse); clearTimeout(readyTimer);
+        // A session that never reported its end can keep holding the microphone (iPhone); release it so the next recording starts clean.
+        if (current && !ended) {
+          const dead = current;
+          dead.onresult = null; dead.onerror = null; dead.onend = null;
+          try { dead.abort(); } catch { /* already gone */ }
+        }
         this.active = null; this.requestStop = null; this.requestAbort = null;
         resolve(r);
       };
@@ -122,7 +132,7 @@ export class WebSpeechRecognitionProvider implements SpeechRecognitionProvider {
 
       const startSession = (restart: boolean) => {
         const rec = new Ctor();
-        current = rec; this.active = rec; sessions++;
+        current = rec; this.active = rec; sessions++; ended = false;
         latest = null;
         let sessionError: SpeechErrorCode | null = null;
         rec.lang = lang;
@@ -130,21 +140,26 @@ export class WebSpeechRecognitionProvider implements SpeechRecognitionProvider {
         rec.interimResults = true;           // iOS may never send a final result, so interim text is used too
         rec.maxAlternatives = 3;
         for (const name of ["start", "audiostart", "soundstart", "speechstart", "speechend", "soundend", "audioend", "nomatch"]) {
-          (rec as unknown as Record<string, unknown>)[`on${name}`] = () => log(name);
+          (rec as unknown as Record<string, unknown>)[`on${name}`] = () => { log(name); if (name === "audiostart" || name === "soundstart" || name === "speechstart") markReady(); };
         }
 
         rec.onresult = (e) => {
           const r = readResults(e.results);
           if (!r) return;
-          log("result");
+          log("result"); markReady();
           latest = r;
           onInterim?.(compose()?.alternatives[0] ?? "");
           clearTimeout(quiet);
           quiet = setTimeout(stop, quietMs);
         };
-        rec.onerror = (e) => { sessionError = mapError(e.error); lastError = sessionError; log(`error:${e.error}`); };
+        rec.onerror = (e) => {
+          const code = mapError(e.error);
+          // Safari reports "aborted" by itself when it heard nothing. Only an abort WE asked for counts as a cancel.
+          sessionError = code === "aborted" && !aborted ? "no_speech" : code;
+          lastError = sessionError; log(`error:${e.error}`);
+        };
         rec.onend = () => {
-          log("end");
+          log("end"); ended = true;
           if (settled) return;
           if (aborted) return finish({ ok: false, error: "aborted" });
           // iPhone: the session ended on a pause while the user is still within the quiet window, so keep listening.
@@ -159,6 +174,8 @@ export class WebSpeechRecognitionProvider implements SpeechRecognitionProvider {
       };
 
       this.requestStop = stop;
+      onPhase?.("starting");
+      readyTimer = setTimeout(markReady, 2500); // in case a browser never reports that audio started
       this.requestAbort = () => {
         aborted = true;
         try { current?.abort(); } catch { /* already ended */ }

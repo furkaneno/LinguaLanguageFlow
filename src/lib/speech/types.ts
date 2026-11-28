@@ -18,7 +18,8 @@ export interface ListenOptions {
   /** Cloud engine only: microphone level 0..1 while recording, so the user can see sound is being captured. */
   onLevel?: (level: number) => void;
   /** Cloud engine only: "processing" while the recording is being transcribed. */
-  onPhase?: (phase: "listening" | "processing") => void;
+  /** "starting": the microphone is being opened (do not speak yet); "listening": it is ready; "processing": sending/transcribing. */
+  onPhase?: (phase: "starting" | "listening" | "processing") => void;
 }
 
 export interface SpeechRecognitionProvider {

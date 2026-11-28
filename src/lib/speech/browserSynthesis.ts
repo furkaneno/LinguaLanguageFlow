@@ -15,7 +15,7 @@ export class BrowserSynthesisProvider implements SpeechSynthesisProvider {
   speak(text: string, lang: string): Promise<"spoken" | "error"> {
     const s = synth();
     if (!s) return Promise.resolve("error");
-    s.cancel();
+    if (s.speaking || s.pending) s.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = lang; u.rate = 0.9;
     const voices = s.getVoices();
@@ -29,5 +29,6 @@ export class BrowserSynthesisProvider implements SpeechSynthesisProvider {
     });
   }
 
-  cancel() { synth()?.cancel(); }
+  /** Only touches the synthesizer if it is speaking: cancelling an idle one can leave the iPhone's audio in a state where the microphone hears nothing. */
+  cancel() { const s = synth(); if (s && (s.speaking || s.pending)) s.cancel(); }
 }

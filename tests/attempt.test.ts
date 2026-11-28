@@ -102,11 +102,12 @@ describe("two-stage attempt flow with a mocked provider", () => {
     expect(s.ctx.lastScore).toBeNull();
   });
 
-  it("an aborted capture dispatches nothing after START", async () => {
+  it("an aborted capture puts the screen back to ready (it can never stay on recording)", async () => {
     const s = session();
     const out = await s.attempt("english", new MockRecognizer([{ ok: false, error: "aborted" }]));
     expect(out.kind).toBe("cancelled");
-    expect(s.events.map((e) => e.type)).toEqual(["START_RECORDING"]);
+    expect(s.events.map((e) => e.type)).toEqual(["START_RECORDING", "CANCEL_RECORDING"]);
+    expect(s.ctx.status).toBe("english_ready");
   });
 
   it("long answers listen longer and through pauses; short ones don't", async () => {

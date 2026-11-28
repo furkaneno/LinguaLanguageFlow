@@ -45,14 +45,14 @@ export function useStudySession(uid: string, classId: string, cards: Map<string,
   const [speaking, setSpeaking] = useState(false);
   const [heard, setHeard] = useState("");
   const [level, setLevel] = useState(0);
-  const [phase, setPhase] = useState<"listening" | "processing">("listening");
+  const [phase, setPhase] = useState<"starting" | "listening" | "processing">("listening");
 
   const recognizer = useRef<SpeechRecognitionProvider | null>(null);
   const synth = useRef<SpeechSynthesisProvider | null>(null);
   const busy = useRef(false);
   const guard = useRef(createGuard());
   const statusRef = useRef("loading");
-  const phaseRef = useRef<"listening" | "processing">("listening");
+  const phaseRef = useRef<"starting" | "listening" | "processing">("listening");
   const hardCap = useRef(SPEECH.listenTimeoutMs + 25000);
   const stats = useRef<CardStats>(emptyStats());
   const completionWritten = useRef(new Set<string>());

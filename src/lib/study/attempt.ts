@@ -24,7 +24,7 @@ interface Deps {
   passMark?: number;
   /** Cloud engine: microphone level and processing phase. */
   onLevel?: (level: number) => void;
-  onPhase?: (phase: "listening" | "processing") => void;
+  onPhase?: (phase: "starting" | "listening" | "processing") => void;
   assess: (alternatives: string[]) => ScoreResult;
   dispatch: (e: StudyEvent) => void;
 }
@@ -44,7 +44,10 @@ export async function runAttempt(stage: Stage, { recognizer, assess, dispatch, l
     heard = { ok: false, error: "unknown" }; // an engine that throws must never leave the screen stuck on "recording"
   }
   if (!heard.ok) {
-    if (heard.error === "aborted") return { kind: "cancelled", stage };
+    if (heard.error === "aborted") {
+      dispatch({ type: "CANCEL_RECORDING" }); // never leave the screen on "recording", whatever ended the capture
+      return { kind: "cancelled", stage };
+    }
     const detail = isIOS() ? recognizer.diagnostics?.() : "";
     dispatch({ type: "CANCEL_RECORDING", notice: speechErrorMessage(heard.error, isIOS()) + (detail ? ` (Details: ${detail})` : "") });
     return { kind: "error", stage, error: heard.error };

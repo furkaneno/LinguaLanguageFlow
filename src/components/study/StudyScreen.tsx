@@ -166,7 +166,7 @@ export function StudyScreen({ uid, classId, className, cards, init, languages, o
 
         {recording && s.support.engine === "browser" && (
           <p aria-live="off" className="min-h-6 max-w-md break-words text-sm text-ink-muted">
-            {s.heard ? `Hearing: “${s.heard}”` : "Listening…"}
+            {s.heard ? `Hearing: “${s.heard}”` : s.phase === "starting" ? "Starting the microphone… wait a moment" : "Listening… speak now"}
           </p>
         )}
         {recording && s.support.engine === "cloud" && (

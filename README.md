@@ -1,6 +1,5 @@
 https://lingua-language.vercel.app/
 <img width="1876" height="852" alt="image" src="https://github.com/user-attachments/assets/f064273f-0cf5-4814-a2df-216c2127034a" />
-<img width="1910" height="861" alt="image" src="https://github.com/user-attachments/assets/7231c97b-85e0-4a76-b374-0a9b5b2a2eed" />
 <img width="1916" height="856" alt="image" src="https://github.com/user-attachments/assets/c2643ca3-5c44-4e30-bbcd-e522c8cc77dd" />
 <img width="1886" height="856" alt="image" src="https://github.com/user-attachments/assets/91d3d02f-ca70-432b-8227-51c0aaf59929" />
 <img width="1902" height="861" alt="image" src="https://github.com/user-attachments/assets/2d818870-465c-4b3e-920b-bb471fb7a1e3" />
